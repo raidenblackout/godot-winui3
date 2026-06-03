@@ -265,6 +265,7 @@ RenderingContextDriver::SurfaceID RenderingContextDriverD3D12::surface_create(co
 	if (surface->swap_chain_panel) {
 		surface->swap_chain_panel->AddRef();
 	}
+	surface->ui_dispatch = wpd->ui_dispatch;
 #endif
 	return SurfaceID(surface);
 }

@@ -69,8 +69,14 @@ python misc/scripts/install_d3d12_sdk_windows.py
 Build the Windows template DLL with WinUI3 support:
 
 ```powershell
-scons platform=windows target=template_release arch=x86_64 d3d12=yes library_type=shared_library winui3=yes
+scons platform=windows target=template_release arch=x86_64 d3d12=yes library_type=shared_library winui3=yes disable_path_overrides=no
 ```
+
+`disable_path_overrides=no` is required when you want the host to launch the
+engine with `--path <project_dir>` (loading a Godot project directory directly
+instead of a packed `.pck`). It defaults to `yes` for `template_release`
+builds, which strips that CLI argument out. Omit it if your host always passes
+`--main-pack <file.pck>`.
 
 The sample project expects the resulting DLL at:
 

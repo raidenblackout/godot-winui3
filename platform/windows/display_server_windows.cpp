@@ -7421,6 +7421,8 @@ Error DisplayServerWindows::_create_rendering_context_window(DisplayServerEnums:
 		wpd.d3d12.window = wd.hWnd;
 #ifdef WINUI3_ENABLED
 		wpd.d3d12.swap_chain_panel = wd.swap_chain_panel;
+		// Identical signatures; cast bridges the DisplayServer and driver typedefs.
+		wpd.d3d12.ui_dispatch = (RenderingContextDriverD3D12::SwapChainBindDispatch)_ui_dispatch;
 #endif
 	}
 #endif
@@ -7503,6 +7505,7 @@ HWND DisplayServerWindows::_embedded_parent_hwnd = nullptr;
 
 #ifdef WINUI3_ENABLED
 ISwapChainPanelNative *DisplayServerWindows::_pending_swap_chain_panel = nullptr;
+DisplayServerWindows::WinUI3UIDispatchFunc DisplayServerWindows::_ui_dispatch = nullptr;
 float DisplayServerWindows::_pending_composition_scale_x = 1.0f;
 float DisplayServerWindows::_pending_composition_scale_y = 1.0f;
 DisplayServerWindows::WinUI3InputMode DisplayServerWindows::_winui3_input_mode = DisplayServerWindows::WINUI3_INPUT_NATIVE;
@@ -7525,6 +7528,10 @@ void DisplayServerWindows::set_pending_swap_chain_panel(ISwapChainPanelNative *p
 	if (_pending_swap_chain_panel) {
 		_pending_swap_chain_panel->AddRef();
 	}
+}
+
+void DisplayServerWindows::set_ui_dispatcher(WinUI3UIDispatchFunc p_dispatch) {
+	_ui_dispatch = p_dispatch;
 }
 #endif
 

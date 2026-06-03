@@ -818,6 +818,14 @@ public:
 	static void set_pending_swap_chain_panel(ISwapChainPanelNative *p_panel);
 	static ISwapChainPanelNative *_pending_swap_chain_panel; // nullptr by default.
 
+	// Pre-initialization API: supply a callback that runs work synchronously on the thread that
+	// owns the SwapChainPanel (the host UI thread). Required when the engine iterates on a
+	// dedicated thread, because ISwapChainPanelNative::SetSwapChain must run on the panel's thread.
+	// nullptr (default) means "run inline" — correct only when the engine shares the UI thread.
+	typedef void (*WinUI3UIDispatchFunc)(void (*p_work)(void *p_ctx), void *p_ctx);
+	static void set_ui_dispatcher(WinUI3UIDispatchFunc p_dispatch);
+	static WinUI3UIDispatchFunc _ui_dispatch; // nullptr by default.
+
 	// Pre-initialization API: set the panel's CompositionScaleX/Y before EngineStart so the first
 	// swap chain build picks up the right inverse transform. Default 1.0f (= no scaling).
 	static void set_pending_composition_scale(float p_scale_x, float p_scale_y);

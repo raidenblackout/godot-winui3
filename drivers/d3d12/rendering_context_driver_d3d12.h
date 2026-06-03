@@ -95,10 +95,18 @@ public:
 	// non-trivial default ctor (e.g. via a default member initializer) would
 	// delete the union's default ctor. Callers must set every field they care
 	// about explicitly before passing this to surface_create().
+#ifdef WINUI3_ENABLED
+	// Runs p_work(p_ctx) synchronously on the thread that owns the SwapChainPanel
+	// (the host UI thread). Supplied by the WinUI3 host when the engine iterates
+	// on a dedicated thread; nullptr means "run inline" (engine on the UI thread).
+	typedef void (*SwapChainBindDispatch)(void (*p_work)(void *p_ctx), void *p_ctx);
+#endif
+
 	struct WindowPlatformData {
 		HWND window;
 #ifdef WINUI3_ENABLED
 		ISwapChainPanelNative *swap_chain_panel;
+		SwapChainBindDispatch ui_dispatch;
 #endif
 	};
 
@@ -125,6 +133,9 @@ public:
 #endif
 #ifdef WINUI3_ENABLED
 		ISwapChainPanelNative *swap_chain_panel = nullptr;
+		// Marshals the panel-affine bind (SetSwapChain / SetMatrixTransform) onto
+		// the UI thread; nullptr means run inline. See WindowPlatformData.
+		SwapChainBindDispatch ui_dispatch = nullptr;
 		// CompositionScale of the SwapChainPanel — physical-pixels-per-DIP. The
 		// swap chain must apply the inverse of this as a transform so that the
 		// pixel-sized buffer maps 1:1 into the panel's DIP-sized output area.

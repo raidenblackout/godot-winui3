@@ -149,6 +149,35 @@ GODOT_WINUI3_API void godot_winui3_engine_shutdown();
 GODOT_WINUI3_API void godot_winui3_set_swap_chain_panel(int32_t p_window_id, void *p_panel_native);
 
 /**
+ * A unit of work the engine needs run on the host UI thread.
+ * p_ctx is engine-owned and only valid for the duration of the call.
+ */
+typedef void (*godot_winui3_work_func)(void *p_ctx);
+
+/**
+ * Host-supplied dispatcher: run p_work(p_ctx) on the thread that owns the
+ * SwapChainPanel (the host UI thread) and return only once it has completed
+ * (i.e. SYNCHRONOUSLY — block the calling engine thread until done).
+ */
+typedef void (*godot_winui3_ui_dispatch_func)(godot_winui3_work_func p_work, void *p_ctx);
+
+/**
+ * Install a dispatcher used to marshal the few rendering calls that have UI-thread
+ * affinity — specifically ISwapChainPanelNative::SetSwapChain — onto the UI thread.
+ *
+ * REQUIRED when the engine is driven from a dedicated thread (i.e. when
+ * godot_winui3_engine_setup/start/iteration run on a thread other than the one
+ * that created the SwapChainPanel). Binding the swap chain to the panel's
+ * composition visual must happen on the panel's thread; off-thread it silently
+ * returns S_OK but never attaches, leaving the panel blank.
+ *
+ * Call BEFORE godot_winui3_engine_start() (the swap chain is created during
+ * start). Pass NULL to clear, in which case the binding runs inline on the
+ * calling thread — correct only when that thread already owns the panel.
+ */
+GODOT_WINUI3_API void godot_winui3_set_ui_dispatcher(godot_winui3_ui_dispatch_func p_dispatch);
+
+/**
  * Notify the engine that the SwapChainPanel was resized.
  *
  * Call from the SwapChainPanel.SizeChanged handler in the WinUI3 host.

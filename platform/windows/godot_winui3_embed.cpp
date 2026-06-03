@@ -209,6 +209,13 @@ void godot_winui3_set_swap_chain_panel(int32_t p_window_id, void *p_panel_native
 			p_panel_native);
 }
 
+void godot_winui3_set_ui_dispatcher(godot_winui3_ui_dispatch_func p_dispatch) {
+	// Signatures are identical; the cast bridges the C ABI typedef and the
+	// DisplayServer-side typedef without coupling the two headers.
+	DisplayServerWindows::set_ui_dispatcher(
+			reinterpret_cast<DisplayServerWindows::WinUI3UIDispatchFunc>(p_dispatch));
+}
+
 void godot_winui3_notify_panel_resize(int32_t p_window_id, int32_t p_width, int32_t p_height) {
 	DisplayServerWindows *ds = Object::cast_to<DisplayServerWindows>(DisplayServer::get_singleton());
 	if (ds == nullptr) {

@@ -2882,13 +2882,46 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 
 #ifdef WINUI3_ENABLED
 	if (create_for_swap_chain_panel) {
+		// Binding the swap chain into the SwapChainPanel's composition visual
+		// (SetSwapChain) touches state owned by the thread that created the panel
+		// (the host UI thread). When the engine iterates on a dedicated thread we
+		// must marshal it onto the UI thread; off-thread it returns S_OK but never
+		// attaches and the panel stays blank.
+		//
+		// Only do this on FRESH creation. The hop blocks the engine thread until
+		// the UI thread runs it — but during an interactive (drag) resize the UI
+		// thread is in the Win32 modal resize loop and is synchronously SendMessage-
+		// ing WM_SIZE to our child HWND, which it can only complete once the engine
+		// thread pumps. Blocking the engine thread there would deadlock both. Drag
+		// resizes hit the ResizeBuffers path (not fresh), so they never hop.
 		if (fresh_swap_chain) {
-			res = surface->swap_chain_panel->SetSwapChain(swap_chain->d3d_swap_chain.Get());
-			ERR_FAIL_COND_V(!SUCCEEDED(res), ERR_CANT_CREATE);
+			struct PanelBind {
+				ISwapChainPanelNative *panel;
+				IDXGISwapChain *swap_chain;
+				HRESULT result;
+			} bind;
+			bind.panel = surface->swap_chain_panel;
+			bind.swap_chain = swap_chain->d3d_swap_chain.Get();
+			bind.result = S_OK;
+
+			// Non-capturing lambda → plain function pointer, so it can cross the C ABI.
+			void (*work)(void *) = [](void *p_ctx) {
+				PanelBind *b = static_cast<PanelBind *>(p_ctx);
+				b->result = b->panel->SetSwapChain(b->swap_chain);
+			};
+
+			if (surface->ui_dispatch != nullptr) {
+				surface->ui_dispatch(work, &bind);
+			} else {
+				work(&bind);
+			}
+			ERR_FAIL_COND_V(!SUCCEEDED(bind.result), ERR_CANT_CREATE);
 		}
 
-		// Reapply the inverse CompositionScale transform on every resize — the scale
-		// may change independently of swap chain recreation.
+		// Reapply the inverse CompositionScale transform on every (re)size — the
+		// scale may change independently of swap chain recreation. This is a DXGI
+		// swap-chain method on the engine-owned swap chain (not a panel/compositor
+		// call), so it is safe to run inline on the engine thread without a UI hop.
 		// (IDXGISwapChain3 inherits SetMatrixTransform from IDXGISwapChain2.)
 		DXGI_MATRIX_3X2_F transform = {
 			1.0f / surface->composition_scale_x, 0.0f,
