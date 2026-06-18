@@ -172,6 +172,76 @@ platform/windows/winui3_sample/WinUI3Sample.csproj
 The project copies `bin/godot.windows.template_release.x86_64.dll` as
 `godot.dll` when that file exists.
 
+## Project side-implementation:
+
+You can use `Engine.get_singleton("WinUI3Host")` to retrieve a singleton object, that can be used to pass/receive message to/from the host.
+```code
+extends BaseInteractor
+class_name WindowsWinUI3Interactor
+
+var _host: Object = null
+
+func _ready() -> void:
+	if Engine.has_singleton("WinUI3Host"):
+		_host = Engine.get_singleton("WinUI3Host")
+		register_callbacks()
+	else:
+		push_warning("WindowsWinUI3Interactor: WinUI3Host singleton not found — running without host bridge")
+
+func register_callbacks() -> void:
+	if _host == null:
+		return
+	_host.call("register_handler", "response", _on_winui3_response)
+	_host.call("register_handler", "error", _on_winui3_error)
+	_host.call("register_handler", "config_change", _on_winui3_config_change)
+
+func unregister_callbacks() -> void:
+	if _host == null:
+		return
+	_host.call("unregister_handler", "response")
+	_host.call("unregister_handler", "error")
+	_host.call("unregister_handler", "config_change")
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		unregister_callbacks()
+
+func _on_winui3_response(mainCmd: String, subCmd: String, json: String) -> void:
+	_on_response(mainCmd, subCmd, json)
+
+func _on_winui3_error(mainCmd: String, subCmd: String, json: String) -> void:
+	_on_error(mainCmd, subCmd, json)
+
+func _on_winui3_config_change(json: String) -> void:
+	_on_configuration_changed(json)
+
+func request_data(mainCmd: String, subCmd: String, json: String) -> void:
+	if _host == null:
+		return
+	_host.call("send_to_host", "request_data", [mainCmd, subCmd, json])
+
+func get_string(id: String, args: Array) -> String:
+	if _host == null:
+		return ""
+	var result = _host.call("send_to_host", "get_string", [id, args])
+	if result is String:
+		return result
+	return ""
+
+func get_quantity_string(id: String, quantity: int, args: Array) -> String:
+	if _host == null:
+		return ""
+	var result = _host.call("send_to_host", "get_quantity_string", [id, quantity, args])
+	if result is String:
+		return result
+	return ""
+
+func print_log(level: String, tag: String, message: String) -> void:
+	if _host == null:
+		return
+	_host.call("send_to_host", "print_log", [level, tag, message])
+```
+
 ## Key Files
 
 - `platform/windows/godot_winui3_embed.h`
