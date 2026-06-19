@@ -15,6 +15,8 @@
     <!-- Bundle the WindowsAppSDK runtime so the sample runs without
          requiring the user to install the WindowsAppRuntime 1.6 separately. -->
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <GodotRootBin>$(MSBuildThisFileDirectory)..\..\..\..\bin</GodotRootBin>
+    <GodotWinUI3EngineDll>$(GodotRootBin)\godot.windows.template_release.x86_64.dll</GodotWinUI3EngineDll>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,15 +40,21 @@
 
   <!-- Copy the engine DLL next to the sample exe and rename to godot.dll so
        the [DllImport("godot")] in GodotWinUI3Embed.cs resolves. -->
+  <Target Name="ValidateGodotWinUI3EngineDll" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(GodotWinUI3EngineDll)')" Text="Godot WinUI3 engine DLL was not found at '$(GodotWinUI3EngineDll)'. Build it first from the Godot repo root with: python -m SCons platform=windows winui3=yes d3d12=yes library_type=shared_library target=template_release disable_path_overrides=no -j4" />
+  </Target>
+
   <ItemGroup>
-    <Content Include="..\..\..\bin\godot.windows.template_release.x86_64.dll" Condition="Exists('..\..\..\bin\godot.windows.template_release.x86_64.dll')">
+    <Content Include="$(GodotWinUI3EngineDll)">
       <Link>godot.dll</Link>
+      <TargetPath>godot.dll</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(GodotRootBin)\D3D12Core.dll" Condition="Exists('$(GodotRootBin)\D3D12Core.dll')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\..\..\bin\D3D12Core.dll" Condition="Exists('..\..\..\bin\D3D12Core.dll')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\..\bin\d3d12SDKLayers.dll" Condition="Exists('..\..\..\bin\d3d12SDKLayers.dll')">
+    <Content Include="$(GodotRootBin)\d3d12SDKLayers.dll" Condition="Exists('$(GodotRootBin)\d3d12SDKLayers.dll')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
