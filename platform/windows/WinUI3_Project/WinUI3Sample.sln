@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37012.4 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinUI3Sample", "winui3_sample\WinUI3Sample.csproj", "{BAE99E80-0859-3AE5-4AA2-5F3177739826}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Godot.WinUI3.Embedding", "Godot.WinUI3.Embedding\Godot.WinUI3.Embedding.csproj", "{83A5624F-7A2F-E5CE-E4D6-7543502F567C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BAE99E80-0859-3AE5-4AA2-5F3177739826}.Debug|x64.ActiveCfg = Debug|x64
+		{BAE99E80-0859-3AE5-4AA2-5F3177739826}.Debug|x64.Build.0 = Debug|x64
+		{BAE99E80-0859-3AE5-4AA2-5F3177739826}.Release|x64.ActiveCfg = Release|x64
+		{BAE99E80-0859-3AE5-4AA2-5F3177739826}.Release|x64.Build.0 = Release|x64
+		{83A5624F-7A2F-E5CE-E4D6-7543502F567C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{83A5624F-7A2F-E5CE-E4D6-7543502F567C}.Debug|x64.Build.0 = Debug|Any CPU
+		{83A5624F-7A2F-E5CE-E4D6-7543502F567C}.Release|x64.ActiveCfg = Release|Any CPU
+		{83A5624F-7A2F-E5CE-E4D6-7543502F567C}.Release|x64.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {534FBF84-8E44-4A6F-9330-032ABBCDCB0F}
+	EndGlobalSection
+EndGlobal
