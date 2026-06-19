@@ -9,6 +9,7 @@ namespace GodotWinUI3Sample.Views;
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
@@ -241,12 +242,12 @@ public sealed partial class MapViewPage : Page
 
 	private static string ResolveProjectPath()
 	{
-		//Prefer the TestProject.pck copied next to the exe by the csproj
+		// Prefer the TestProject.pck copied next to the exe by the csproj
 		// (production-style deployment). Fall back to the dev path.
-		//var sibling = Path.Combine(AppContext.BaseDirectory, "Assets", "mapview.pck");
-		//if (File.Exists(sibling)) return sibling;
-		//var siblingFlat = Path.Combine(AppContext.BaseDirectory, "TestProject.pck");
-		//if (File.Exists(siblingFlat)) return siblingFlat;
+		var sibling = Path.Combine(AppContext.BaseDirectory, "Assets", "TestProject.pck");
+		if (File.Exists(sibling)) return sibling;
+		var siblingFlat = Path.Combine(AppContext.BaseDirectory, "TestProject.pck");
+		if (File.Exists(siblingFlat)) return siblingFlat;
 		return DefaultProjectPath;
 	}
 }

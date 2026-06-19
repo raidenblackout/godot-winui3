@@ -21,8 +21,6 @@
 ###########################
 ### Build configuration ###
 ###########################
-/platform/windows/Godot.WinUI3.Embedding
-/platform/windows/winui3_sample/
 /custom.py
 
 #############################
