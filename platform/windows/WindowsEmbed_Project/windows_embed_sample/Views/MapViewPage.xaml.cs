@@ -73,6 +73,7 @@ public sealed partial class MapViewPage : Page
 		_receiver.OnUIControlCommand += OnUIControlCommand;
 		_receiver.OnRendererStatus += OnRendererStatus;
 		_receiver.OnUnhandledMessage += OnUnhandledMessage;
+		_receiver.OnSynchronousMessage = OnSynchronousHostMessage;
 		_receiver.Initialize();
 
 		// Seed the engine with the panel's initial physical size + DPI.
@@ -150,6 +151,31 @@ public sealed partial class MapViewPage : Page
 	private void OnUnhandledMessage(object? sender, EngineMessageEventArgs e)
 	{
 		Debug.WriteLine($"[MapViewPage] Unhandled: {e.Method} {e.ArgsJson}");
+	}
+
+	private string? OnSynchronousHostMessage(EngineMessageEventArgs e)
+	{
+		switch (e.Method)
+		{
+			case "get_indoor_map":
+				return _viewModel.GetIndoorMap();
+			case "get_rooms":
+				return _viewModel.GetRooms();
+			case "get_scenes":
+				return _viewModel.GetScenes();
+			case "get_devices":
+				return _viewModel.GetDevices();
+			case "get_locations":
+				return _viewModel.GetLocations();
+			case "get_capability_status":
+				return _viewModel.GetCapabilityStatus();
+			case "get_host_time":
+				return JsonSerializer.Serialize(DateTimeOffset.Now.ToString("O"));
+			case "custom_command":
+				return JsonSerializer.Serialize(new { ok = true, method = e.Method });
+			default:
+				return null;
+		}
 	}
 
 	// ---------------------------------------------------------------------

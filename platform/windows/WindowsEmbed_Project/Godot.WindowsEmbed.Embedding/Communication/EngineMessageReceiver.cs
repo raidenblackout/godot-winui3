@@ -34,6 +34,12 @@ public sealed class EngineMessageReceiver : IDisposable
 	public event EventHandler<EngineMessageEventArgs>? OnUnhandledMessage;
 
 	/// <summary>
+	/// Optional synchronous handler for direct <c>send_to_host</c> calls that
+	/// expect a return value.
+	/// </summary>
+	public Func<EngineMessageEventArgs, string?>? OnSynchronousMessage { get; set; }
+
+	/// <summary>
 	/// Registers the message handler with the Godot engine. Call BEFORE
 	/// <see cref="GodotEngineHost.Start"/> so messages emitted during script
 	/// <c>_ready</c> are not dropped.
@@ -56,8 +62,14 @@ public sealed class EngineMessageReceiver : IDisposable
 	// Invoked on the engine thread.
 	private string? HandleHostMessage(string method, string argsJson)
 	{
-		var target = DetermineTarget(method);
 		var args = new EngineMessageEventArgs { Method = method, ArgsJson = argsJson };
+		string? ret = OnSynchronousMessage?.Invoke(args);
+		if (ret != null)
+		{
+			return ret;
+		}
+
+		var target = DetermineTarget(method);
 
 		if (_uiContext == null || SynchronizationContext.Current == _uiContext)
 		{

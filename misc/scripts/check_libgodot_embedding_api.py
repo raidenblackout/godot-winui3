@@ -25,6 +25,8 @@ def main():
     wrapper_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedEmbed.cs")
     enums_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedEnums.cs")
     engine_host_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/GodotEngineHost.cs")
+    receiver_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Communication/EngineMessageReceiver.cs")
+    map_page_cs = read("platform/windows/WindowsEmbed_Project/windows_embed_sample/Views/MapViewPage.xaml.cs")
     platform_scsub = read("platform/windows/SCsub")
     d3d12_scsub = read("drivers/d3d12/SCsub")
     display_server_windows_cpp = read("platform/windows/display_server_windows.cpp")
@@ -60,6 +62,8 @@ def main():
         ("GodotWindowsEmbedEmbed.cs", wrapper_cs),
         ("GodotWindowsEmbedEnums.cs", enums_cs),
         ("GodotEngineHost.cs", engine_host_cs),
+        ("EngineMessageReceiver.cs", receiver_cs),
+        ("MapViewPage.xaml.cs", map_page_cs),
         ("platform/windows/SCsub", platform_scsub),
         ("drivers/d3d12/SCsub", d3d12_scsub),
     ]:
@@ -80,6 +84,9 @@ def main():
     )
     assert_contains(enums_cs, "GodotWindowsEmbedInputMode", "GodotWindowsEmbedEnums.cs")
     assert_contains(engine_host_cs, "SetInputMode(GodotWindowsEmbedInputMode.Xaml)", "GodotEngineHost.cs")
+    assert_contains(receiver_cs, "OnSynchronousMessage", "EngineMessageReceiver.cs")
+    assert_contains(map_page_cs, "OnSynchronousHostMessage", "MapViewPage.xaml.cs")
+    assert_contains(map_page_cs, 'case "get_devices":', "MapViewPage.xaml.cs")
 
 
 if __name__ == "__main__":
