@@ -8471,9 +8471,10 @@ void DisplayServerWindows::window_set_swap_chain_panel(DisplayServerEnums::Windo
 	_THREAD_SAFE_METHOD_
 
 	ERR_FAIL_COND(!windows.has(p_window_id));
-	WindowData &wd = windows[p_window_id];
 
 #ifdef WINUI3_ENABLED
+	WindowData &wd = windows[p_window_id];
+
 	if (wd.swap_chain_panel) {
 		wd.swap_chain_panel->Release();
 		wd.swap_chain_panel = nullptr;
