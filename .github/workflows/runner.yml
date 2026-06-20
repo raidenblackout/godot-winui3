@@ -49,6 +49,12 @@ jobs:
     if: needs.static-checks.outputs.sources-changed == 'true' || github.event_name != 'pull_request'
     uses: ./.github/workflows/windows_builds.yml
 
+  winui3-build:
+    name: Windows WinUI3
+    needs: static-checks
+    if: needs.static-checks.outputs.sources-changed == 'true' || github.event_name != 'pull_request'
+    uses: ./.github/workflows/winui3_builds.yml
+
   web-build:
     name: 🌐 Web
     needs: static-checks
