@@ -2809,7 +2809,9 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 #endif
 	const bool use_composition_alpha = create_for_composition && (!create_for_swap_chain_panel || OS::get_singleton()->is_layered_allowed());
 
+#ifdef WINUI3_ENABLED
 	const bool fresh_swap_chain = (swap_chain->d3d_swap_chain == nullptr);
+#endif
 	DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
 	if (swap_chain->d3d_swap_chain != nullptr) {
 		_swap_chain_release_buffers(swap_chain);
