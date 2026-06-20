@@ -1,4 +1,4 @@
-namespace Godot.WinUI3.Embedding.Interop;
+namespace Godot.WindowsEmbed.Embedding.Interop;
 
 /// <summary>Severity level passed to the log callback.</summary>
 public enum GodotLogLevel : int

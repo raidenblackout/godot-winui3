@@ -1,4 +1,4 @@
-namespace Godot.WinUI3.Embedding;
+namespace Godot.WindowsEmbed.Embedding;
 
 public enum EngineState
 {

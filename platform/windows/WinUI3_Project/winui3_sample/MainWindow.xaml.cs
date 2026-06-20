@@ -1,7 +1,7 @@
-using GodotWinUI3Sample.Views;
+using GodotWindowsEmbedSample.Views;
 using Microsoft.UI.Xaml;
 
-namespace GodotWinUI3Sample;
+namespace GodotWindowsEmbedSample;
 
 public sealed partial class MainWindow : Window
 {

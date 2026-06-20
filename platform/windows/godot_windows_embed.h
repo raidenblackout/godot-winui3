@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_winui3_embed.h                                                  */
+/*  godot_windows_embed_embed.h                                                  */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -30,8 +30,8 @@
 
 #pragma once
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 
 #include "core/extension/libgodot.h"
 
-#endif // WINUI3_ENABLED
+#endif // WINDOWS_EMBED_ENABLED

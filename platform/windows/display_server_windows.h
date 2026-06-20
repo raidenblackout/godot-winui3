@@ -60,7 +60,7 @@
 #include <shobjidl.h>
 #include <windowsx.h>
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 struct ISwapChainPanelNative;
 #endif
 
@@ -400,7 +400,7 @@ class DisplayServerWindows : public DisplayServer {
 
 		bool no_redirection_bitmap = false;
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 		ISwapChainPanelNative *swap_chain_panel = nullptr;
 		float composition_scale_x = 1.0f;
 		float composition_scale_y = 1.0f;
@@ -747,10 +747,10 @@ public:
 	void window_notify_panel_resize(DisplayServerEnums::WindowID p_window_id, int p_width, int p_height);
 	void window_set_composition_scale(DisplayServerEnums::WindowID p_window_id, float p_scale_x, float p_scale_y);
 
-#ifdef WINUI3_ENABLED
-	static void _winui3_inject_mouse_button(DisplayServerEnums::WindowID p_window_id, MouseButton p_button, bool p_pressed, float p_x, float p_y);
-	static void _winui3_inject_mouse_motion(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_rel_x, float p_rel_y);
-	static void _winui3_inject_key(DisplayServerEnums::WindowID p_window_id, Key p_keycode, bool p_pressed, bool p_echo, char32_t p_char);
+#ifdef WINDOWS_EMBED_ENABLED
+	static void _windows_embed_inject_mouse_button(DisplayServerEnums::WindowID p_window_id, MouseButton p_button, bool p_pressed, float p_x, float p_y);
+	static void _windows_embed_inject_mouse_motion(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_rel_x, float p_rel_y);
+	static void _windows_embed_inject_key(DisplayServerEnums::WindowID p_window_id, Key p_keycode, bool p_pressed, bool p_echo, char32_t p_char);
 #endif
 
 	virtual void cursor_set_shape(DisplayServerEnums::CursorShape p_shape) override;
@@ -812,7 +812,7 @@ public:
 	static void set_embedded_parent_hwnd(void *p_hwnd); // Must be called before engine init.
 	static HWND _embedded_parent_hwnd; // nullptr by default.
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	// Pre-initialization API: set the ISwapChainPanelNative* before EngineStart so it is applied
 	// during _create_rendering_context_window rather than via a destroy+create cycle afterward.
 	static void set_pending_swap_chain_panel(ISwapChainPanelNative *p_panel);
@@ -822,9 +822,9 @@ public:
 	// owns the SwapChainPanel (the host UI thread). Required when the engine iterates on a
 	// dedicated thread, because ISwapChainPanelNative::SetSwapChain must run on the panel's thread.
 	// nullptr (default) means "run inline" — correct only when the engine shares the UI thread.
-	typedef void (*WinUI3UIDispatchFunc)(void (*p_work)(void *p_ctx), void *p_ctx);
-	static void set_ui_dispatcher(WinUI3UIDispatchFunc p_dispatch);
-	static WinUI3UIDispatchFunc _ui_dispatch; // nullptr by default.
+	typedef void (*WindowsEmbedUIDispatchFunc)(void (*p_work)(void *p_ctx), void *p_ctx);
+	static void set_ui_dispatcher(WindowsEmbedUIDispatchFunc p_dispatch);
+	static WindowsEmbedUIDispatchFunc _ui_dispatch; // nullptr by default.
 
 	// Pre-initialization API: set the panel's CompositionScaleX/Y before EngineStart so the first
 	// swap chain build picks up the right inverse transform. Default 1.0f (= no scaling).
@@ -835,15 +835,15 @@ public:
 	// Runtime input-routing mode. NATIVE (default): Win32 WM_* messages reach WndProc normally.
 	// XAML: WndProc suppresses all mouse/keyboard WM_* messages; the host injects input via the
 	// libgodot_inject_input_event C API instead. Must be set before the first frame.
-	enum WinUI3InputMode {
-		WINUI3_INPUT_NATIVE = 0,
-		WINUI3_INPUT_XAML = 1,
+	enum WindowsEmbedInputMode {
+		WINDOWS_EMBED_INPUT_NATIVE = 0,
+		WINDOWS_EMBED_INPUT_XAML = 1,
 	};
-	static WinUI3InputMode _winui3_input_mode;
-	static void set_winui3_input_mode(int32_t p_mode);
-	static bool _winui3_active; // true once a SwapChainPanel has been bound during DSW construction.
+	static WindowsEmbedInputMode _windows_embed_input_mode;
+	static void set_windows_embed_input_mode(int32_t p_mode);
+	static bool _windows_embed_active; // true once a SwapChainPanel has been bound during DSW construction.
 
-	static void _winui3_inject_mouse_wheel(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_delta_x, float p_delta_y);
+	static void _windows_embed_inject_mouse_wheel(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_delta_x, float p_delta_y);
 #endif
 
 	void window_set_embedded_parent(DisplayServerEnums::WindowID p_window_id, void *p_parent_hwnd);

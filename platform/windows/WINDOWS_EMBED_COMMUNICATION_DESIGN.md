@@ -1,12 +1,12 @@
-# WinUI3 Communication Layer — Design
+# WindowsEmbed Communication Layer — Design
 
-Replaces the current `WinUI3HostBridge` + `windows_winui3_interactor.gd` machinery
+Replaces the current `WindowsEmbedHostBridge` + `windows_windows_embed_interactor.gd` machinery
 with a thread-safe message bus and an explicit engine-thread separation.
 
 ## Goals
 
 - **One primitive** for all host↔engine messaging: signal-based, async, thread-safe.
-- **Engine runs on its own thread** — not the WinUI3 UI dispatcher.
+- **Engine runs on its own thread** — not the WindowsEmbed UI dispatcher.
 - **Zero synchronization code in userland.** No `call_deferred`, no pending counts,
   no timeout guards, no defer-or-AV gotchas. Connect a signal, send a message, done.
 - **Public API stable across embeddings.** Same shape will work if/when we
@@ -48,7 +48,7 @@ cross-thread interaction goes through the queues defined below.
 ```gdscript
 # Send a message to the host. Safe to call from any thread.
 # Non-blocking — returns immediately after enqueue.
-WinUI3.send(main_cmd: StringName, sub_cmd: StringName, data: Variant) -> void
+WindowsEmbed.send(main_cmd: StringName, sub_cmd: StringName, data: Variant) -> void
 
 # Signal — emitted on the engine thread, during an active iteration.
 # One emission per message. No coalescing, no defer required by the handler.
@@ -87,13 +87,13 @@ public sealed class MessageEventArgs : EventArgs
 | Name | Purpose | Owner |
 | --- | --- | --- |
 | **E** — Engine thread | `Main::iteration()`, GDScript execution, signal emissions, renderer work | Engine (spawned by `EmbeddedEngine.Start`) |
-| **U** — UI thread | WinUI3 composition, XAML, dispatcher, pointer/key event source | App startup thread |
+| **U** — UI thread | WindowsEmbed composition, XAML, dispatcher, pointer/key event source | App startup thread |
 | **W** — Worker threads | Host-side I/O, network, decoding | `ThreadPool` / app's own pool |
 
 ### Flow
 
 ```
-GDScript on E ──→ WinUI3.send() ──→ [outbound queue] ──→ host drains on U or W
+GDScript on E ──→ WindowsEmbed.send() ──→ [outbound queue] ──→ host drains on U or W
                                                          └→ OnMessage(handler)
 
 host on U/W ──→ CommunicationManager.Send() ──→ [inbound queue] ──→ E drains at iter start
@@ -137,7 +137,7 @@ PointerPressed (on U) ──→ EmbeddedEngine.InjectMouseButton(...) ──→ 
                                                                         DisplayServer
 ```
 
-Today's `_winui3_inject_*` static methods become enqueues. The engine drains
+Today's `_windows_embed_inject_*` static methods become enqueues. The engine drains
 the queue at the top of each iteration before the message queue. Same invariants:
 non-blocking, single emission, no defer needed.
 
@@ -227,7 +227,7 @@ SPSC + thread_local sharding is a clean default; benchmark before optimizing.
 ### Delete
 
 - `_pending_responses` dict + `SIMULATED_TIMEOUT_SEC` timer in
-  `windows_winui3_interactor.gd`.
+  `windows_windows_embed_interactor.gd`.
 - `SimulatedResponse` class (entire `simulated_response.gd`).
 - The whole `Sender.PostDataCommand` / `register_handler("response", ...)`
   asymmetric callback pattern in `HostInteropSender.cs` / `HostInteropReceiver.cs`.
@@ -237,8 +237,8 @@ SPSC + thread_local sharding is a clean default; benchmark before optimizing.
 
 | Today | Tomorrow |
 | --- | --- |
-| `_host.call("send_to_host", "request_data", [...])` | `WinUI3.send("request_data", sub_cmd, data)` |
-| `_host.call("register_handler", "response", ...)` + GDScript dispatch | `WinUI3.on_message.connect(_on_msg)` |
+| `_host.call("send_to_host", "request_data", [...])` | `WindowsEmbed.send("request_data", sub_cmd, data)` |
+| `_host.call("register_handler", "response", ...)` + GDScript dispatch | `WindowsEmbed.on_message.connect(_on_msg)` |
 | `Sender.PostDataCommand("result_" + subCmd, json)` (in C#) | `CommunicationManager.Send("response", "result_" + subCmd, json)` |
 | `Receiver.OnDataCommand += handler` | `CommunicationManager.OnMessage += handler` |
 
@@ -252,12 +252,12 @@ SPSC + thread_local sharding is a clean default; benchmark before optimizing.
 ### Userland after migration
 
 ```gdscript
-# windows_winui3_interactor.gd (or whatever replaces it)
+# windows_windows_embed_interactor.gd (or whatever replaces it)
 extends Node
 
 func _ready() -> void:
-    WinUI3.on_message.connect(_on_msg)
-    WinUI3.send("request_data", "get_indoor_map", {})
+    WindowsEmbed.on_message.connect(_on_msg)
+    WindowsEmbed.send("request_data", "get_indoor_map", {})
 
 func _on_msg(main_cmd: StringName, sub_cmd: StringName, data: Variant) -> void:
     if main_cmd == "response":
@@ -293,7 +293,7 @@ No threading code, no IDs, no timers — both sides.
 ## Open questions
 
 1. **Timeout helper?** The bridge never timeouts on its own. Do we ship a
-   userland convenience `WinUI3.send_and_await(main_cmd, sub_cmd, data,
+   userland convenience `WindowsEmbed.send_and_await(main_cmd, sub_cmd, data,
    timeout_ms)` that returns a one-shot signal? Probably yes as opt-in sugar.
 2. **Backpressure.** If the host drains too slowly, outbound queue grows
    unbounded. Cap at N (e.g. 4096) with drop-oldest? Reject `send()`? Make it
@@ -303,7 +303,7 @@ No threading code, no IDs, no timers — both sides.
    timestamps, source thread, etc., later). Lean toward object.
 4. **`Main::setup` thread placement.** Some early init may touch GPU drivers in
    ways that prefer the UI thread on Windows. Spike before committing.
-5. **GDExtension parity.** This API is a Godot-side singleton (`WinUI3`). For
+5. **GDExtension parity.** This API is a Godot-side singleton (`WindowsEmbed`). For
    GDExtension callers (C#/Rust/etc.) we mirror the same shape via class methods.
    Verify the GDExtension binding generator handles `Variant` payloads cleanly
    across the FFI boundary.
@@ -320,6 +320,6 @@ The design is "right" when:
 - `EmbeddedEngine.Pause()` mid-frame doesn't drop input or messages; the queues
   buffer until `Resume()`.
 - The current 1.16-second "deferred response delivery" gap in the
-  `windows_winui3_interactor.gd` measurements collapses to one iteration
+  `windows_windows_embed_interactor.gd` measurements collapses to one iteration
   (~16 ms), because there is no out-of-iteration callback path that has to be
   re-deferred.

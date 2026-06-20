@@ -1,20 +1,20 @@
-// GodotWinUI3Embed.cs
-// Typed C# wrapper around the raw P/Invoke declarations in GodotWinUI3Native.
+// GodotWindowsEmbedEmbed.cs
+// Typed C# wrapper around the raw P/Invoke declarations in GodotWindowsEmbedNative.
 // Callers outside this assembly should go through GodotEngineHost instead of
 // calling these methods directly -- the host marshals calls onto the engine
 // thread and keeps the pinned native callbacks alive.
 
-namespace Godot.WinUI3.Embedding.Interop;
+namespace Godot.WindowsEmbed.Embedding.Interop;
 
 using System;
 using System.Runtime.InteropServices;
 
-public static class GodotWinUI3Embed
+public static class GodotWindowsEmbedEmbed
 {
 	// Pinned delegates -- must outlive their native callback registration.
-	private static GodotWinUI3Native.GodotLogDelegate? _logDelegatePin;
-	private static GodotWinUI3Native.GodotUiDispatchDelegate? _uiDispatchPin;
-	private static GodotWinUI3Native.GodotHostMsgDelegate? _hostMsgDelegatePin;
+	private static GodotWindowsEmbedNative.GodotLogDelegate? _logDelegatePin;
+	private static GodotWindowsEmbedNative.GodotUiDispatchDelegate? _uiDispatchPin;
+	private static GodotWindowsEmbedNative.GodotHostMsgDelegate? _hostMsgDelegatePin;
 
 	public delegate string? HostMessageHandler(string method, string argsJson);
 
@@ -27,7 +27,7 @@ public static class GodotWinUI3Embed
 	{
 		if (callback == null)
 		{
-			GodotWinUI3Native.libgodot_set_log_callback(null);
+			GodotWindowsEmbedNative.libgodot_set_log_callback(null);
 			_logDelegatePin = null;
 			return;
 		}
@@ -37,7 +37,7 @@ public static class GodotWinUI3Embed
 			string msg = Marshal.PtrToStringUTF8(msgPtr) ?? string.Empty;
 			callback(msg, (GodotLogLevel)level);
 		};
-		GodotWinUI3Native.libgodot_set_log_callback(_logDelegatePin);
+		GodotWindowsEmbedNative.libgodot_set_log_callback(_logDelegatePin);
 	}
 
 	/// <summary>
@@ -46,7 +46,7 @@ public static class GodotWinUI3Embed
 	/// </summary>
 	public static void SetEmbeddedParentWindow(IntPtr hostWindow)
 	{
-		GodotWinUI3Native.libgodot_set_embedded_parent_window(hostWindow);
+		GodotWindowsEmbedNative.libgodot_set_embedded_parent_window(hostWindow);
 	}
 
 	/// <summary>
@@ -68,7 +68,7 @@ public static class GodotWinUI3Embed
 				Marshal.Copy(bytes, 0, utf8Ptrs[i], bytes.Length);
 				Marshal.WriteIntPtr(argv, i * IntPtr.Size, utf8Ptrs[i]);
 			}
-			return GodotWinUI3Native.libgodot_engine_setup(args.Length, argv) != 0;
+			return GodotWindowsEmbedNative.libgodot_engine_setup(args.Length, argv) != 0;
 		}
 		finally
 		{
@@ -84,7 +84,7 @@ public static class GodotWinUI3Embed
 	/// <summary>Starts the loaded project (Main::setup2 + Main::start).</summary>
 	public static bool EngineStart()
 	{
-		return GodotWinUI3Native.libgodot_engine_start() != 0;
+		return GodotWindowsEmbedNative.libgodot_engine_start() != 0;
 	}
 
 	/// <summary>
@@ -93,13 +93,13 @@ public static class GodotWinUI3Embed
 	/// <returns><c>true</c> when the engine wants to quit.</returns>
 	public static bool EngineIteration()
 	{
-		return GodotWinUI3Native.libgodot_engine_iteration() != 0;
+		return GodotWindowsEmbedNative.libgodot_engine_iteration() != 0;
 	}
 
 	/// <summary>Shuts down the engine and releases all resources. Idempotent.</summary>
 	public static void EngineShutdown()
 	{
-		GodotWinUI3Native.libgodot_engine_shutdown();
+		GodotWindowsEmbedNative.libgodot_engine_shutdown();
 	}
 
 	/// <summary>
@@ -107,12 +107,12 @@ public static class GodotWinUI3Embed
 	/// </summary>
 	public static void AttachSurface(int windowId, IntPtr nativeSurface)
 	{
-		GodotWinUI3Native.libgodot_attach_surface(windowId, nativeSurface);
+		GodotWindowsEmbedNative.libgodot_attach_surface(windowId, nativeSurface);
 	}
 
 	public static void DetachSurface(int windowId)
 	{
-		GodotWinUI3Native.libgodot_detach_surface(windowId);
+		GodotWindowsEmbedNative.libgodot_detach_surface(windowId);
 	}
 
 	/// <summary>
@@ -125,94 +125,94 @@ public static class GodotWinUI3Embed
 	{
 		_uiDispatchPin = (workFuncPtr, ctx) =>
 		{
-			var work = Marshal.GetDelegateForFunctionPointer<GodotWinUI3Native.GodotWorkDelegate>(workFuncPtr);
+			var work = Marshal.GetDelegateForFunctionPointer<GodotWindowsEmbedNative.GodotWorkDelegate>(workFuncPtr);
 			dispatch(() => work(ctx));
 		};
-		GodotWinUI3Native.libgodot_set_ui_dispatcher(_uiDispatchPin);
+		GodotWindowsEmbedNative.libgodot_set_ui_dispatcher(_uiDispatchPin);
 	}
 
 	public static void ClearUiDispatcher()
 	{
-		GodotWinUI3Native.libgodot_set_ui_dispatcher(null);
+		GodotWindowsEmbedNative.libgodot_set_ui_dispatcher(null);
 		_uiDispatchPin = null;
 	}
 
 	/// <summary>Notifies the engine that the native surface was resized.</summary>
 	public static void SetSurfaceSize(int windowId, int width, int height)
 	{
-		GodotWinUI3Native.libgodot_surface_set_size(windowId, width, height);
+		GodotWindowsEmbedNative.libgodot_surface_set_size(windowId, width, height);
 	}
 
 	/// <summary>Sets the surface scale (physical pixels per logical point).</summary>
 	public static void SetSurfaceScale(int windowId, float scaleX, float scaleY)
 	{
-		GodotWinUI3Native.libgodot_surface_set_scale(windowId, scaleX, scaleY);
+		GodotWindowsEmbedNative.libgodot_surface_set_scale(windowId, scaleX, scaleY);
 	}
 
 	/// <summary>Injects a mouse button press or release event into Godot.</summary>
 	public static void InjectMouseButton(int windowId, GodotMouseButton button, bool pressed, float x, float y)
 	{
-		var inputEvent = GodotWinUI3Native.LibGodotInputEvent.Create(
-			GodotWinUI3Native.LibGodotInputEventType.MouseButton, windowId);
-		inputEvent.Data.MouseButton = new GodotWinUI3Native.LibGodotMouseButtonEvent
+		var inputEvent = GodotWindowsEmbedNative.LibGodotInputEvent.Create(
+			GodotWindowsEmbedNative.LibGodotInputEventType.MouseButton, windowId);
+		inputEvent.Data.MouseButton = new GodotWindowsEmbedNative.LibGodotMouseButtonEvent
 		{
 			Button = (int)button,
 			Pressed = pressed ? 1 : 0,
 			X = x,
 			Y = y,
 		};
-		GodotWinUI3Native.libgodot_inject_input_event(ref inputEvent);
+		GodotWindowsEmbedNative.libgodot_inject_input_event(ref inputEvent);
 	}
 
 	/// <summary>Injects a mouse motion event into Godot.</summary>
 	public static void InjectMouseMotion(int windowId, float x, float y, float relX, float relY)
 	{
-		var inputEvent = GodotWinUI3Native.LibGodotInputEvent.Create(
-			GodotWinUI3Native.LibGodotInputEventType.MouseMotion, windowId);
-		inputEvent.Data.MouseMotion = new GodotWinUI3Native.LibGodotMouseMotionEvent
+		var inputEvent = GodotWindowsEmbedNative.LibGodotInputEvent.Create(
+			GodotWindowsEmbedNative.LibGodotInputEventType.MouseMotion, windowId);
+		inputEvent.Data.MouseMotion = new GodotWindowsEmbedNative.LibGodotMouseMotionEvent
 		{
 			X = x,
 			Y = y,
 			RelativeX = relX,
 			RelativeY = relY,
 		};
-		GodotWinUI3Native.libgodot_inject_input_event(ref inputEvent);
+		GodotWindowsEmbedNative.libgodot_inject_input_event(ref inputEvent);
 	}
 
 	/// <summary>Injects a key press or release event into Godot.</summary>
 	public static void InjectKey(int windowId, int keycode, bool pressed, bool echo, uint character = 0)
 	{
-		var inputEvent = GodotWinUI3Native.LibGodotInputEvent.Create(
-			GodotWinUI3Native.LibGodotInputEventType.Key, windowId);
-		inputEvent.Data.Key = new GodotWinUI3Native.LibGodotKeyEvent
+		var inputEvent = GodotWindowsEmbedNative.LibGodotInputEvent.Create(
+			GodotWindowsEmbedNative.LibGodotInputEventType.Key, windowId);
+		inputEvent.Data.Key = new GodotWindowsEmbedNative.LibGodotKeyEvent
 		{
 			Keycode = keycode,
 			Pressed = pressed ? 1 : 0,
 			Echo = echo ? 1 : 0,
 			Unicode = character,
 		};
-		GodotWinUI3Native.libgodot_inject_input_event(ref inputEvent);
+		GodotWindowsEmbedNative.libgodot_inject_input_event(ref inputEvent);
 	}
 
 	/// <summary>Injects a scroll-wheel event into Godot.</summary>
 	public static void InjectMouseWheel(int windowId, float x, float y, float deltaX, float deltaY)
 	{
-		var inputEvent = GodotWinUI3Native.LibGodotInputEvent.Create(
-			GodotWinUI3Native.LibGodotInputEventType.MouseWheel, windowId);
-		inputEvent.Data.MouseWheel = new GodotWinUI3Native.LibGodotMouseWheelEvent
+		var inputEvent = GodotWindowsEmbedNative.LibGodotInputEvent.Create(
+			GodotWindowsEmbedNative.LibGodotInputEventType.MouseWheel, windowId);
+		inputEvent.Data.MouseWheel = new GodotWindowsEmbedNative.LibGodotMouseWheelEvent
 		{
 			X = x,
 			Y = y,
 			DeltaX = deltaX,
 			DeltaY = deltaY,
 		};
-		GodotWinUI3Native.libgodot_inject_input_event(ref inputEvent);
+		GodotWindowsEmbedNative.libgodot_inject_input_event(ref inputEvent);
 	}
 
 	/// <summary>Sets the input routing mode for the embedded Godot window.</summary>
 	public static void SetInputMode(int mode)
 	{
-		GodotWinUI3Native.libgodot_set_input_mode(mode);
+		GodotWindowsEmbedNative.libgodot_set_input_mode(mode);
 	}
 
 	/// <summary>
@@ -224,7 +224,7 @@ public static class GodotWinUI3Embed
 	{
 		if (handler == null)
 		{
-			GodotWinUI3Native.libgodot_set_host_message_callback(null);
+			GodotWindowsEmbedNative.libgodot_set_host_message_callback(null);
 			_hostMsgDelegatePin = null;
 			return;
 		}
@@ -240,7 +240,7 @@ public static class GodotWinUI3Embed
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"WinUI3 host handler '{method}' threw: {ex}");
+				System.Diagnostics.Debug.WriteLine($"WindowsEmbed host handler '{method}' threw: {ex}");
 				ret = null;
 			}
 			if (ret != null)
@@ -248,7 +248,7 @@ public static class GodotWinUI3Embed
 				IntPtr retUtf8 = Utf8Alloc(ret);
 				try
 				{
-					GodotWinUI3Native.libgodot_set_call_return(retUtf8);
+					GodotWindowsEmbedNative.libgodot_set_call_return(retUtf8);
 				}
 				finally
 				{
@@ -256,12 +256,12 @@ public static class GodotWinUI3Embed
 				}
 			}
 		};
-		GodotWinUI3Native.libgodot_set_host_message_callback(_hostMsgDelegatePin);
+		GodotWindowsEmbedNative.libgodot_set_host_message_callback(_hostMsgDelegatePin);
 	}
 
 	/// <summary>
 	/// Invokes a GDScript handler registered via
-	/// <c>WinUI3Host.register_handler(method, callable)</c>.
+	/// <c>WindowsEmbedHost.register_handler(method, callable)</c>.
 	/// </summary>
 	public static string? CallEngine(string method, string? argsJson = null)
 	{
@@ -273,11 +273,11 @@ public static class GodotWinUI3Embed
 		IntPtr retUtf8 = IntPtr.Zero;
 		try
 		{
-			int ok = GodotWinUI3Native.libgodot_call_engine(methodUtf8, argsUtf8, out retUtf8);
+			int ok = GodotWindowsEmbedNative.libgodot_call_engine(methodUtf8, argsUtf8, out retUtf8);
 			if (ok == 0)
 			{
 				throw new InvalidOperationException(
-					"WinUI3Host bridge is not initialized. Call EngineSetup() first.");
+					"WindowsEmbedHost bridge is not initialized. Call EngineSetup() first.");
 			}
 			if (retUtf8 == IntPtr.Zero)
 			{
@@ -289,7 +289,7 @@ public static class GodotWinUI3Embed
 		{
 			if (retUtf8 != IntPtr.Zero)
 			{
-				GodotWinUI3Native.libgodot_free_string(retUtf8);
+				GodotWindowsEmbedNative.libgodot_free_string(retUtf8);
 			}
 			if (argsUtf8 != IntPtr.Zero)
 			{

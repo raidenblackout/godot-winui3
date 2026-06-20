@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using Microsoft.UI.Xaml;
 
-namespace GodotWinUI3Sample;
+namespace GodotWindowsEmbedSample;
 
 public partial class App : Application
 {

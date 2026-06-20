@@ -1,13 +1,13 @@
 // GodotEngineHost.cs
 // Runs the embedded Godot engine on a dedicated background thread instead of
-// the WinUI3 UI thread. UI-affine native calls (binding the swap chain to the
+// the WindowsEmbed UI thread. UI-affine native calls (binding the swap chain to the
 // SwapChainPanel) are marshaled back onto the UI thread via the captured
 // SynchronizationContext; everything else (input injection, panel resize,
 // host<->engine calls) is funnelled through a work queue drained at the top
 // of each engine iteration, so callers on the UI thread never touch engine
 // state directly.
 
-namespace Godot.WinUI3.Embedding;
+namespace Godot.WindowsEmbed.Embedding;
 
 using System;
 using System.Collections.Concurrent;
@@ -15,7 +15,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using Godot.WinUI3.Embedding.Interop;
+using Godot.WindowsEmbed.Embedding.Interop;
 
 public sealed class GodotEngineHost : IDisposable
 {
@@ -97,35 +97,35 @@ public sealed class GodotEngineHost : IDisposable
 	{
 		Post(() =>
 		{
-			GodotWinUI3Embed.SetSurfaceScale(0, scaleX, scaleY);
-			GodotWinUI3Embed.SetSurfaceSize(0, (int)widthPx, (int)heightPx);
+			GodotWindowsEmbedEmbed.SetSurfaceScale(0, scaleX, scaleY);
+			GodotWindowsEmbedEmbed.SetSurfaceSize(0, (int)widthPx, (int)heightPx);
 		});
 	}
 
 	public void DetachSurface()
-		=> Post(() => GodotWinUI3Embed.DetachSurface(0));
+		=> Post(() => GodotWindowsEmbedEmbed.DetachSurface(0));
 
 	public void InjectMouseButton(GodotMouseButton button, bool pressed, float x, float y)
-		=> Post(() => GodotWinUI3Embed.InjectMouseButton(0, button, pressed, x, y));
+		=> Post(() => GodotWindowsEmbedEmbed.InjectMouseButton(0, button, pressed, x, y));
 
 	public void InjectMouseMotion(float x, float y, float relX, float relY)
-		=> Post(() => GodotWinUI3Embed.InjectMouseMotion(0, x, y, relX, relY));
+		=> Post(() => GodotWindowsEmbedEmbed.InjectMouseMotion(0, x, y, relX, relY));
 
 	public void InjectMouseWheel(float x, float y, float deltaX, float deltaY)
-		=> Post(() => GodotWinUI3Embed.InjectMouseWheel(0, x, y, deltaX, deltaY));
+		=> Post(() => GodotWindowsEmbedEmbed.InjectMouseWheel(0, x, y, deltaX, deltaY));
 
 	public void InjectKey(int keycode, bool pressed, bool echo, uint character = 0)
-		=> Post(() => GodotWinUI3Embed.InjectKey(0, keycode, pressed, echo, character));
+		=> Post(() => GodotWindowsEmbedEmbed.InjectKey(0, keycode, pressed, echo, character));
 
 	private void RunEngineThread(IntPtr hostHwnd, IntPtr panelNative, int widthPx, int heightPx, float scaleX, float scaleY)
 	{
 		OpenLogFile();
-		GodotWinUI3Embed.SetLogCallback(OnGodotLog);
-		GodotWinUI3Embed.SetEmbeddedParentWindow(hostHwnd);
-		GodotWinUI3Embed.SetUiDispatcher(RunOnUiThread);
+		GodotWindowsEmbedEmbed.SetLogCallback(OnGodotLog);
+		GodotWindowsEmbedEmbed.SetEmbeddedParentWindow(hostHwnd);
+		GodotWindowsEmbedEmbed.SetUiDispatcher(RunOnUiThread);
 
 		string[] args = { "godot", "--main-pack", ProjectPath, "--rendering-driver", RenderingDriver };
-		if (!GodotWinUI3Embed.EngineSetup(args))
+		if (!GodotWindowsEmbedEmbed.EngineSetup(args))
 		{
 			System.Diagnostics.Debug.WriteLine("[GodotEngineHost] EngineSetup failed.");
 			ReleasePanel(panelNative);
@@ -136,7 +136,7 @@ public sealed class GodotEngineHost : IDisposable
 
 		try
 		{
-			GodotWinUI3Embed.AttachSurface(0, panelNative);
+			GodotWindowsEmbedEmbed.AttachSurface(0, panelNative);
 		}
 		finally
 		{
@@ -145,10 +145,10 @@ public sealed class GodotEngineHost : IDisposable
 			ReleasePanel(panelNative);
 		}
 
-		GodotWinUI3Embed.SetSurfaceScale(0, scaleX, scaleY);
-		GodotWinUI3Embed.SetSurfaceSize(0, widthPx, heightPx);
+		GodotWindowsEmbedEmbed.SetSurfaceScale(0, scaleX, scaleY);
+		GodotWindowsEmbedEmbed.SetSurfaceSize(0, widthPx, heightPx);
 
-		if (!GodotWinUI3Embed.EngineStart())
+		if (!GodotWindowsEmbedEmbed.EngineStart())
 		{
 			System.Diagnostics.Debug.WriteLine("[GodotEngineHost] EngineStart failed.");
 			TeardownNativeCallbacks();
@@ -161,13 +161,13 @@ public sealed class GodotEngineHost : IDisposable
 		while (!_stopRequested)
 		{
 			DrainWorkQueue();
-			if (GodotWinUI3Embed.EngineIteration())
+			if (GodotWindowsEmbedEmbed.EngineIteration())
 				break;
 		}
 
 		State = EngineState.Stopping;
 		DrainWorkQueue();
-		GodotWinUI3Embed.EngineShutdown();
+		GodotWindowsEmbedEmbed.EngineShutdown();
 		TeardownNativeCallbacks();
 		CloseLogFile();
 		State = EngineState.Stopped;
@@ -196,7 +196,7 @@ public sealed class GodotEngineHost : IDisposable
 			return;
 		}
 
-		// WinUI3's DispatcherQueueSynchronizationContext doesn't implement
+		// WindowsEmbed's DispatcherQueueSynchronizationContext doesn't implement
 		// Send() (it throws NotSupportedException), so block on a wait handle
 		// around Post() instead to get the synchronous hand-off the native
 		// dispatcher contract requires.
@@ -225,8 +225,8 @@ public sealed class GodotEngineHost : IDisposable
 
 	private static void TeardownNativeCallbacks()
 	{
-		GodotWinUI3Embed.ClearUiDispatcher();
-		GodotWinUI3Embed.SetLogCallback(null);
+		GodotWindowsEmbedEmbed.ClearUiDispatcher();
+		GodotWindowsEmbedEmbed.SetLogCallback(null);
 	}
 
 	private static void OnGodotLog(string message, GodotLogLevel level)
@@ -259,7 +259,7 @@ public sealed class GodotEngineHost : IDisposable
 				{
 					AutoFlush = true,
 				};
-				_logFileWriter.WriteLine($"=== Godot WinUI3 sample log opened {DateTime.Now:O} ===");
+				_logFileWriter.WriteLine($"=== Godot WindowsEmbed sample log opened {DateTime.Now:O} ===");
 			}
 		}
 		catch (Exception ex)

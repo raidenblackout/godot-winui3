@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_winui3_embed.cpp                                                */
+/*  godot_windows_embed_embed.cpp                                                */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,12 +28,12 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 
-#include "godot_winui3_embed.h"
+#include "godot_windows_embed_embed.h"
 
 #include "display_server_windows.h"
-#include "winui3_host_bridge.h"
+#include "windows_embed_host_bridge.h"
 
 #include "core/error/error_macros.h"
 #include "core/extension/godot_instance.h"
@@ -52,10 +52,10 @@
 // Engine lifecycle
 //
 // Thin wrappers around libgodot_create_godot_instance / GodotInstance so that
-// a WinUI3 host can drive the engine without dealing with GDExtension interop.
+// a WindowsEmbed host can drive the engine without dealing with GDExtension interop.
 // ---------------------------------------------------------------------------
 
-static GodotInstance *g_winui3_instance = nullptr;
+static GodotInstance *g_windows_embed_instance = nullptr;
 
 // ---------------------------------------------------------------------------
 // Log / error callback
@@ -65,7 +65,7 @@ static libgodot_log_func s_log_callback = nullptr;
 static PrintHandlerList s_print_handler;
 static ErrorHandlerList s_error_handler;
 
-static void _winui3_print_handler(void *, const String &p_message, bool p_error, bool p_rich) {
+static void _windows_embed_print_handler(void *, const String &p_message, bool p_error, bool p_rich) {
 	if (!s_log_callback) {
 		return;
 	}
@@ -73,7 +73,7 @@ static void _winui3_print_handler(void *, const String &p_message, bool p_error,
 	s_log_callback(cs.get_data(), p_error ? 2 : 0);
 }
 
-static void _winui3_error_handler(void *, const char *p_func, const char *p_file, int p_line,
+static void _windows_embed_error_handler(void *, const char *p_func, const char *p_file, int p_line,
 		const char *p_err, const char *p_descr, bool p_editor_notify, ErrorHandlerType p_type) {
 	(void)p_editor_notify;
 	if (!s_log_callback) {
@@ -101,11 +101,11 @@ void libgodot_set_log_callback(libgodot_log_func p_callback) {
 	}
 	s_log_callback = p_callback;
 	if (p_callback) {
-		s_print_handler.printfunc = _winui3_print_handler;
+		s_print_handler.printfunc = _windows_embed_print_handler;
 		s_print_handler.userdata = nullptr;
 		add_print_handler(&s_print_handler);
 
-		s_error_handler.errfunc = _winui3_error_handler;
+		s_error_handler.errfunc = _windows_embed_error_handler;
 		s_error_handler.userdata = nullptr;
 		add_error_handler(&s_error_handler);
 	}
@@ -114,9 +114,9 @@ void libgodot_set_log_callback(libgodot_log_func p_callback) {
 // Stub GDExtension init function. The host application is not itself a
 // GDExtension — it just embeds the engine — so we register an empty extension
 // that satisfies libgodot's bookkeeping without registering any classes.
-static void _winui3_stub_noop(void *, GDExtensionInitializationLevel) {}
+static void _windows_embed_stub_noop(void *, GDExtensionInitializationLevel) {}
 
-static GDExtensionBool _winui3_stub_extension_init(
+static GDExtensionBool _windows_embed_stub_extension_init(
 		GDExtensionInterfaceGetProcAddress p_get_proc_address,
 		GDExtensionClassLibraryPtr p_library,
 		GDExtensionInitialization *r_initialization) {
@@ -124,8 +124,8 @@ static GDExtensionBool _winui3_stub_extension_init(
 	(void)p_library;
 	r_initialization->minimum_initialization_level = GDEXTENSION_INITIALIZATION_SCENE;
 	r_initialization->userdata = nullptr;
-	r_initialization->initialize = _winui3_stub_noop;
-	r_initialization->deinitialize = _winui3_stub_noop;
+	r_initialization->initialize = _windows_embed_stub_noop;
+	r_initialization->deinitialize = _windows_embed_stub_noop;
 	return 1;
 }
 
@@ -134,15 +134,15 @@ void libgodot_set_embedded_parent_window(void *p_hwnd) {
 }
 
 int32_t libgodot_engine_setup(int32_t p_argc, char **p_argv) {
-	ERR_FAIL_COND_V_MSG(g_winui3_instance != nullptr, 0, "Godot engine is already initialized.");
+	ERR_FAIL_COND_V_MSG(g_windows_embed_instance != nullptr, 0, "Godot engine is already initialized.");
 	ERR_FAIL_COND_V(p_argc < 1, 0);
 	ERR_FAIL_NULL_V(p_argv, 0);
 
-	GDExtensionObjectPtr ptr = libgodot_create_godot_instance(p_argc, p_argv, &_winui3_stub_extension_init);
+	GDExtensionObjectPtr ptr = libgodot_create_godot_instance(p_argc, p_argv, &_windows_embed_stub_extension_init);
 	if (ptr == nullptr) {
 		return 0;
 	}
-	g_winui3_instance = (GodotInstance *)ptr;
+	g_windows_embed_instance = (GodotInstance *)ptr;
 	return 1;
 }
 
@@ -158,8 +158,8 @@ struct DeferredResizeState {
 static DeferredResizeState s_deferred_resize;
 
 int32_t libgodot_engine_start() {
-	ERR_FAIL_NULL_V_MSG(g_winui3_instance, 0, "Call libgodot_engine_setup() first.");
-	bool ok = g_winui3_instance->start();
+	ERR_FAIL_NULL_V_MSG(g_windows_embed_instance, 0, "Call libgodot_engine_setup() first.");
+	bool ok = g_windows_embed_instance->start();
 	if (ok) {
 		// Main::setup2() (called inside start()) creates the DisplayServer.
 		// Replay any resize call that arrived before it existed.
@@ -177,19 +177,19 @@ int32_t libgodot_engine_start() {
 }
 
 int32_t libgodot_engine_iteration() {
-	ERR_FAIL_NULL_V_MSG(g_winui3_instance, 1, "Engine not initialized — caller should stop iterating.");
+	ERR_FAIL_NULL_V_MSG(g_windows_embed_instance, 1, "Engine not initialized — caller should stop iterating.");
 	// GodotInstance::iteration() returns true when the main loop wants to quit.
-	return g_winui3_instance->iteration() ? 1 : 0;
+	return g_windows_embed_instance->iteration() ? 1 : 0;
 }
 
 void libgodot_engine_shutdown() {
-	if (g_winui3_instance == nullptr) {
+	if (g_windows_embed_instance == nullptr) {
 		return;
 	}
 	DisplayServerWindows::set_pending_swap_chain_panel(nullptr);
 	DisplayServerWindows::set_pending_composition_scale(1.0f, 1.0f);
-	libgodot_destroy_godot_instance((GDExtensionObjectPtr)g_winui3_instance);
-	g_winui3_instance = nullptr;
+	libgodot_destroy_godot_instance((GDExtensionObjectPtr)g_windows_embed_instance);
+	g_windows_embed_instance = nullptr;
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ void libgodot_set_ui_dispatcher(libgodot_ui_dispatch_func p_dispatch) {
 	// Signatures are identical; the cast bridges the C ABI typedef and the
 	// DisplayServer-side typedef without coupling the two headers.
 	DisplayServerWindows::set_ui_dispatcher(
-			reinterpret_cast<DisplayServerWindows::WinUI3UIDispatchFunc>(p_dispatch));
+			reinterpret_cast<DisplayServerWindows::WindowsEmbedUIDispatchFunc>(p_dispatch));
 }
 
 void libgodot_surface_set_size(int32_t p_window_id, int32_t p_width, int32_t p_height) {
@@ -309,7 +309,7 @@ int32_t libgodot_inject_input_event(const LibGodotInputEvent *p_event) {
 		}
 		case LIBGODOT_INPUT_EVENT_MOUSE_WHEEL: {
 			const LibGodotMouseWheelEvent &src = p_event->data.mouse_wheel;
-			DisplayServerWindows::_winui3_inject_mouse_wheel(window_id, src.x, src.y, src.delta_x, src.delta_y);
+			DisplayServerWindows::_windows_embed_inject_mouse_wheel(window_id, src.x, src.y, src.delta_x, src.delta_y);
 			return 1;
 		}
 		case LIBGODOT_INPUT_EVENT_KEY: {
@@ -363,46 +363,46 @@ int32_t libgodot_inject_input_event(const LibGodotInputEvent *p_event) {
 }
 
 void libgodot_set_input_mode(int32_t p_mode) {
-	DisplayServerWindows::set_winui3_input_mode(p_mode);
+	DisplayServerWindows::set_windows_embed_input_mode(p_mode);
 }
 
 // ---------------------------------------------------------------------------
 // Host <-> Engine messaging
 //
-// JSON-on-the-wire bridge backed by the WinUI3HostBridge singleton. See
-// winui3_host_bridge.h for the engine-side surface and the .h above for
+// JSON-on-the-wire bridge backed by the WindowsEmbedHostBridge singleton. See
+// windows_embed_host_bridge.h for the engine-side surface and the .h above for
 // the documented host-facing contract.
 // ---------------------------------------------------------------------------
 
 // Stash for a host callback registered before the bridge singleton exists.
 // The host is allowed to call libgodot_set_host_message_callback() at any
 // time after libgodot_set_log_callback() but before EngineSetup completes.
-// register_winui3_host_bridge() calls godot_winui3_apply_pending_host_callback()
+// register_windows_embed_host_bridge() calls godot_windows_embed_apply_pending_host_callback()
 // immediately after constructing the bridge so the callback is never dropped.
 static libgodot_host_msg_func s_pending_host_callback = nullptr;
 
-// Called by register_winui3_host_bridge() (winui3_host_bridge.cpp) once the
+// Called by register_windows_embed_host_bridge() (windows_embed_host_bridge.cpp) once the
 // bridge singleton is live. Applies any callback stashed before setup finished.
-void godot_winui3_apply_pending_host_callback(WinUI3HostBridge *p_bridge) {
+void godot_windows_embed_apply_pending_host_callback(WindowsEmbedHostBridge *p_bridge) {
 	if (p_bridge != nullptr && s_pending_host_callback != nullptr) {
-		p_bridge->set_host_callback(reinterpret_cast<WinUI3HostBridge::HostMessageFunc>(s_pending_host_callback));
+		p_bridge->set_host_callback(reinterpret_cast<WindowsEmbedHostBridge::HostMessageFunc>(s_pending_host_callback));
 		s_pending_host_callback = nullptr;
 	}
 }
 
 void libgodot_set_host_message_callback(libgodot_host_msg_func p_callback) {
-	WinUI3HostBridge *bridge = WinUI3HostBridge::get_singleton();
+	WindowsEmbedHostBridge *bridge = WindowsEmbedHostBridge::get_singleton();
 	if (bridge == nullptr) {
-		// Bridge not created yet — stash and apply in register_winui3_host_bridge().
+		// Bridge not created yet — stash and apply in register_windows_embed_host_bridge().
 		s_pending_host_callback = p_callback;
 		return;
 	}
 	s_pending_host_callback = nullptr;
-	bridge->set_host_callback(reinterpret_cast<WinUI3HostBridge::HostMessageFunc>(p_callback));
+	bridge->set_host_callback(reinterpret_cast<WindowsEmbedHostBridge::HostMessageFunc>(p_callback));
 }
 
 void libgodot_set_call_return(const char *p_json) {
-	WinUI3HostBridge *bridge = WinUI3HostBridge::get_singleton();
+	WindowsEmbedHostBridge *bridge = WindowsEmbedHostBridge::get_singleton();
 	if (bridge == nullptr) {
 		return;
 	}
@@ -419,7 +419,7 @@ int32_t libgodot_call_engine(const char *p_method, const char *p_args_json, char
 	}
 	ERR_FAIL_NULL_V(p_method, 0);
 
-	WinUI3HostBridge *bridge = WinUI3HostBridge::get_singleton();
+	WindowsEmbedHostBridge *bridge = WindowsEmbedHostBridge::get_singleton();
 	if (bridge == nullptr) {
 		return 0;
 	}
@@ -453,4 +453,4 @@ void libgodot_free_string(char *p_str) {
 	}
 }
 
-#endif // WINUI3_ENABLED
+#endif // WINDOWS_EMBED_ENABLED

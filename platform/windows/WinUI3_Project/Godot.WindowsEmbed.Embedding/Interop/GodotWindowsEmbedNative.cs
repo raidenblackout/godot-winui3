@@ -1,13 +1,13 @@
-// GodotWinUI3Native.cs
+// GodotWindowsEmbedNative.cs
 // Raw P/Invoke declarations matching the C ABI exported by
-// platform/windows/godot_winui3_embed.cpp. Prefer GodotWinUI3Embed instead.
+// platform/windows/godot_windows_embed_embed.cpp. Prefer GodotWindowsEmbedEmbed instead.
 
-namespace Godot.WinUI3.Embedding.Interop;
+namespace Godot.WindowsEmbed.Embedding.Interop;
 
 using System;
 using System.Runtime.InteropServices;
 
-internal static class GodotWinUI3Native
+internal static class GodotWindowsEmbedNative
 {
 	// Update if the Godot shared-library output name differs in your build.
 	private const string DLL_NAME = "godot";

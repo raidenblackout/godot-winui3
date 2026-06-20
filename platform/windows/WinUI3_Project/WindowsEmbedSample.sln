@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.37012.4 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinUI3Sample", "winui3_sample\WinUI3Sample.csproj", "{BAE99E80-0859-3AE5-4AA2-5F3177739826}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsEmbedSample", "windows_embed_sample\WindowsEmbedSample.csproj", "{BAE99E80-0859-3AE5-4AA2-5F3177739826}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Godot.WinUI3.Embedding", "Godot.WinUI3.Embedding\Godot.WinUI3.Embedding.csproj", "{83A5624F-7A2F-E5CE-E4D6-7543502F567C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Godot.WindowsEmbed.Embedding", "Godot.WindowsEmbed.Embedding\Godot.WindowsEmbed.Embedding.csproj", "{83A5624F-7A2F-E5CE-E4D6-7543502F567C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

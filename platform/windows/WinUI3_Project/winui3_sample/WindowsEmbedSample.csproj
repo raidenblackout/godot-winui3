@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
-    <RootNamespace>GodotWinUI3Sample</RootNamespace>
+    <RootNamespace>GodotWindowsEmbedSample</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
@@ -16,7 +16,7 @@
          requiring the user to install the WindowsAppRuntime 1.6 separately. -->
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <GodotRootBin>$(MSBuildThisFileDirectory)..\..\..\..\bin</GodotRootBin>
-    <GodotWinUI3EngineDll>$(GodotRootBin)\godot.windows.template_release.x86_64.dll</GodotWinUI3EngineDll>
+    <GodotWindowsEmbedEngineDll>$(GodotRootBin)\godot.windows.template_release.x86_64.dll</GodotWindowsEmbedEngineDll>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,9 +25,9 @@
   </ItemGroup>
 
   <!-- Engine communication, runtime and lifecycle live in the dedicated
-       Godot.WinUI3.Embedding library, which runs the engine on its own thread. -->
+       Godot.WindowsEmbed.Embedding library, which runs the engine on its own thread. -->
   <ItemGroup>
-    <ProjectReference Include="..\Godot.WinUI3.Embedding\Godot.WinUI3.Embedding.csproj" />
+    <ProjectReference Include="..\Godot.WindowsEmbed.Embedding\Godot.WindowsEmbed.Embedding.csproj" />
   </ItemGroup>
 
   <!-- Bundle the sample IMDF map + rooms data next to the exe. MapViewModel
@@ -39,13 +39,13 @@
   </ItemGroup>
 
   <!-- Copy the engine DLL next to the sample exe and rename to godot.dll so
-       the [DllImport("godot")] in GodotWinUI3Embed.cs resolves. -->
-  <Target Name="ValidateGodotWinUI3EngineDll" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(GodotWinUI3EngineDll)')" Text="Godot WinUI3 engine DLL was not found at '$(GodotWinUI3EngineDll)'. Build it first from the Godot repo root with: python -m SCons platform=windows winui3=yes d3d12=yes library_type=shared_library target=template_release disable_path_overrides=no -j4" />
+       the [DllImport("godot")] in GodotWindowsEmbedEmbed.cs resolves. -->
+  <Target Name="ValidateGodotWindowsEmbedEngineDll" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(GodotWindowsEmbedEngineDll)')" Text="Godot WindowsEmbed engine DLL was not found at '$(GodotWindowsEmbedEngineDll)'. Build it first from the Godot repo root with: python -m SCons platform=windows windows_embed=yes d3d12=yes library_type=shared_library target=template_release disable_path_overrides=no -j4" />
   </Target>
 
   <ItemGroup>
-    <Content Include="$(GodotWinUI3EngineDll)">
+    <Content Include="$(GodotWindowsEmbedEngineDll)">
       <Link>godot.dll</Link>
       <TargetPath>godot.dll</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -1,11 +1,11 @@
-namespace Godot.WinUI3.Embedding.Communication;
+namespace Godot.WindowsEmbed.Embedding.Communication;
 
 using System;
 using System.Text.Json;
 
 public sealed class EngineMessageEventArgs : EventArgs
 {
-	/// <summary>The method name (command) sent from GDScript via <c>WinUI3Host.send_to_host</c>.</summary>
+	/// <summary>The method name (command) sent from GDScript via <c>WindowsEmbedHost.send_to_host</c>.</summary>
 	public required string Method { get; init; }
 
 	/// <summary>JSON-encoded array of arguments.</summary>

@@ -3,7 +3,7 @@
 // `request_data` calls. Reads the bundled Assets/*.json files written next to
 // the sample executable at build time.
 
-namespace GodotWinUI3Sample.ViewModels;
+namespace GodotWindowsEmbedSample.ViewModels;
 
 using System;
 using System.IO;

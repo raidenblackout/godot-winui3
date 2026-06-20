@@ -1,14 +1,14 @@
 // EngineMessageReceiver.cs
-// Receives messages sent from GDScript via WinUI3Host.send_to_host(method,
+// Receives messages sent from GDScript via WindowsEmbedHost.send_to_host(method,
 // args) and raises them as events on the thread that constructed this
-// receiver (normally the WinUI3 UI thread). The native callback itself fires
+// receiver (normally the WindowsEmbed UI thread). The native callback itself fires
 // on the engine thread, so every dispatch is marshalled across.
 
-namespace Godot.WinUI3.Embedding.Communication;
+namespace Godot.WindowsEmbed.Embedding.Communication;
 
 using System;
 using System.Threading;
-using Godot.WinUI3.Embedding.Interop;
+using Godot.WindowsEmbed.Embedding.Interop;
 
 public sealed class EngineMessageReceiver : IDisposable
 {
@@ -41,7 +41,7 @@ public sealed class EngineMessageReceiver : IDisposable
 	public bool Initialize()
 	{
 		if (_isInitialized) return true;
-		GodotWinUI3Embed.SetHostMessageHandler(HandleHostMessage);
+		GodotWindowsEmbedEmbed.SetHostMessageHandler(HandleHostMessage);
 		_isInitialized = true;
 		return true;
 	}
@@ -49,7 +49,7 @@ public sealed class EngineMessageReceiver : IDisposable
 	public void Shutdown()
 	{
 		if (!_isInitialized) return;
-		GodotWinUI3Embed.SetHostMessageHandler(null);
+		GodotWindowsEmbedEmbed.SetHostMessageHandler(null);
 		_isInitialized = false;
 	}
 

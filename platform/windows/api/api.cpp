@@ -30,18 +30,18 @@
 
 #include "api.h"
 
-#ifdef WINUI3_ENABLED
-#include "../winui3_host_bridge.h"
+#ifdef WINDOWS_EMBED_ENABLED
+#include "../windows_embed_host_bridge.h"
 #endif
 
 void register_windows_api() {
-#ifdef WINUI3_ENABLED
-	register_winui3_host_bridge();
+#ifdef WINDOWS_EMBED_ENABLED
+	register_windows_embed_host_bridge();
 #endif
 }
 
 void unregister_windows_api() {
-#ifdef WINUI3_ENABLED
-	unregister_winui3_host_bridge();
+#ifdef WINDOWS_EMBED_ENABLED
+	unregister_windows_embed_host_bridge();
 #endif
 }

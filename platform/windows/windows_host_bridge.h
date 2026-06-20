@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  winui3_host_bridge.h                                                  */
+/*  windows_embed_host_bridge.h                                                  */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -30,32 +30,32 @@
 
 #pragma once
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 
 #include "core/object/object.h"
 #include "core/templates/hash_map.h"
 #include "core/variant/callable.h"
 
-// Bidirectional message bus between an embedded Godot engine and a WinUI3 host
+// Bidirectional message bus between an embedded Godot engine and a WindowsEmbed host
 // process. Mirrors the conventions of Android's GodotPlugin / Web's
-// JavaScriptBridge — a singleton Object exposed as Engine::Singleton("WinUI3Host"),
+// JavaScriptBridge — a singleton Object exposed as Engine::Singleton("WindowsEmbedHost"),
 // callable from GDScript, with a C ABI for the host on the other side.
 //
 // Wire format on the C boundary is JSON (UTF-8). Args are encoded as a JSON
 // array; the return value is any JSON value. The singleton converts to/from
 // Variant internally so GDScript handlers see typed Dictionary/Array/etc.
-class WinUI3HostBridge : public Object {
-	GDCLASS(WinUI3HostBridge, Object);
+class WindowsEmbedHostBridge : public Object {
+	GDCLASS(WindowsEmbedHostBridge, Object);
 
 public:
 	// Engine -> Host callback. Fired when GDScript invokes
-	// WinUI3Host.send_to_host(method, args). The host populates the return
+	// WindowsEmbedHost.send_to_host(method, args). The host populates the return
 	// value (if any) by calling libgodot_set_call_return() from inside this
 	// callback.
 	typedef void (*HostMessageFunc)(const char *p_method, const char *p_args_json);
 
 private:
-	static WinUI3HostBridge *singleton;
+	static WindowsEmbedHostBridge *singleton;
 
 	HostMessageFunc host_callback = nullptr;
 
@@ -71,7 +71,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	static WinUI3HostBridge *get_singleton() { return singleton; }
+	static WindowsEmbedHostBridge *get_singleton() { return singleton; }
 
 	// GDScript-facing API.
 	Variant send_to_host(const StringName &p_method, const Array &p_args);
@@ -87,11 +87,11 @@ public:
 	// returns the JSON-stringified Variant return value.
 	String dispatch_host_call(const String &p_method, const String &p_args_json);
 
-	WinUI3HostBridge();
-	~WinUI3HostBridge();
+	WindowsEmbedHostBridge();
+	~WindowsEmbedHostBridge();
 };
 
-void register_winui3_host_bridge();
-void unregister_winui3_host_bridge();
+void register_windows_embed_host_bridge();
+void unregister_windows_embed_host_bridge();
 
-#endif // WINUI3_ENABLED
+#endif // WINDOWS_EMBED_ENABLED

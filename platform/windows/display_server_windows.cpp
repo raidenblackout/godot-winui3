@@ -68,7 +68,7 @@
 
 #include <dxgi1_6.h>
 #endif
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 #include <windows.ui.xaml.media.dxinterop.h>
 #endif
 #if defined(GLES3_ENABLED)
@@ -2548,9 +2548,9 @@ void DisplayServerWindows::_get_window_style(bool p_main_window, bool p_initiali
 	}
 
 	if (p_embed_child) {
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 		if (_embedded_parent_hwnd != nullptr) {
-			// WinUI3 SwapChainPanel host: use WS_CHILD so the HWND is a true
+			// WindowsEmbed SwapChainPanel host: use WS_CHILD so the HWND is a true
 			// child of the host window (input flows via standard WM_* messages).
 			// WS_EX_NOREDIRECTIONBITMAP keeps DWM from redirecting the surface;
 			// the SwapChainPanel handles presentation.
@@ -5454,11 +5454,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			if (windows[window_id].no_focus || windows[window_id].is_popup) {
 				return MA_NOACTIVATE; // Do not activate, but process mouse messages.
 			}
-#ifdef WINUI3_ENABLED
-			if (_winui3_active) {
-				// In WinUI3 embed mode key events are routed through the XAML event
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_active) {
+				// In WindowsEmbed embed mode key events are routed through the XAML event
 				// system. Do not steal Win32 focus from the XAML bridge HWND or
-				// WinUI3's FocusManager will lose track of the focused element and
+				// WindowsEmbed's FocusManager will lose track of the focused element and
 				// GodotPanel.KeyDown will stop firing.
 				return MA_NOACTIVATE;
 			}
@@ -6138,8 +6138,8 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			return 0; // Pointer event handled return 0 to avoid duplicate WM_MOUSEMOVE event.
 		} break;
 		case WM_MOUSEMOVE: {
-#ifdef WINUI3_ENABLED
-			if (_winui3_input_mode == WINUI3_INPUT_XAML) {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
 				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 			}
 #endif
@@ -6275,8 +6275,8 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		} break;
 		case WM_LBUTTONDOWN:
 		case WM_LBUTTONUP:
-#ifdef WINUI3_ENABLED
-			if (_winui3_input_mode == WINUI3_INPUT_XAML) {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
 				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 			}
 #endif
@@ -6651,8 +6651,8 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		case WM_KEYUP:
 		case WM_SYSKEYDOWN:
 		case WM_KEYDOWN: {
-#ifdef WINUI3_ENABLED
-			if (_winui3_input_mode == WINUI3_INPUT_XAML) {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
 				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 			}
 #endif
@@ -6673,8 +6673,8 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			[[fallthrough]];
 		}
 		case WM_CHAR: {
-#ifdef WINUI3_ENABLED
-			if (_winui3_input_mode == WINUI3_INPUT_XAML) {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
 				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 			}
 #endif
@@ -7386,7 +7386,7 @@ void DisplayServerWindows::_destroy_window(DisplayServerEnums::WindowID p_window
 	if (has_winrt_queue) {
 		WinRTUtils::destroy_wd(wd.wrt_wd);
 	}
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	if (wd.swap_chain_panel) {
 		wd.swap_chain_panel->Release();
 		wd.swap_chain_panel = nullptr;
@@ -7419,7 +7419,7 @@ Error DisplayServerWindows::_create_rendering_context_window(DisplayServerEnums:
 #ifdef D3D12_ENABLED
 	if (p_rendering_driver == "d3d12") {
 		wpd.d3d12.window = wd.hWnd;
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 		wpd.d3d12.swap_chain_panel = wd.swap_chain_panel;
 		// Identical signatures; cast bridges the DisplayServer and driver typedefs.
 		wpd.d3d12.ui_dispatch = (RenderingContextDriverD3D12::SwapChainBindDispatch)_ui_dispatch;
@@ -7432,7 +7432,7 @@ Error DisplayServerWindows::_create_rendering_context_window(DisplayServerEnums:
 
 	Vector2i off = (wd.multiwindow_fs || (!wd.fullscreen && wd.borderless && wd.maximized)) ? _get_screen_expand_offset(window_get_current_screen(p_window_id)) : Vector2i();
 	rendering_context->window_set_size(p_window_id, wd.width + off.x, wd.height + off.y);
-#if defined(WINUI3_ENABLED) && defined(D3D12_ENABLED)
+#if defined(WINDOWS_EMBED_ENABLED) && defined(D3D12_ENABLED)
 	if (p_rendering_driver == "d3d12") {
 		RenderingContextDriver::SurfaceID surface = rendering_context->surface_get_from_window(p_window_id);
 		if (surface) {
@@ -7500,19 +7500,19 @@ GetImmersiveColorFromColorSetExPtr DisplayServerWindows::GetImmersiveColorFromCo
 GetImmersiveColorTypeFromNamePtr DisplayServerWindows::GetImmersiveColorTypeFromName = nullptr;
 GetImmersiveUserColorSetPreferencePtr DisplayServerWindows::GetImmersiveUserColorSetPreference = nullptr;
 
-// Embedded parent HWND for WinUI3 / child-window mode (pre-initialization API).
+// Embedded parent HWND for WindowsEmbed / child-window mode (pre-initialization API).
 HWND DisplayServerWindows::_embedded_parent_hwnd = nullptr;
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 ISwapChainPanelNative *DisplayServerWindows::_pending_swap_chain_panel = nullptr;
-DisplayServerWindows::WinUI3UIDispatchFunc DisplayServerWindows::_ui_dispatch = nullptr;
+DisplayServerWindows::WindowsEmbedUIDispatchFunc DisplayServerWindows::_ui_dispatch = nullptr;
 float DisplayServerWindows::_pending_composition_scale_x = 1.0f;
 float DisplayServerWindows::_pending_composition_scale_y = 1.0f;
-DisplayServerWindows::WinUI3InputMode DisplayServerWindows::_winui3_input_mode = DisplayServerWindows::WINUI3_INPUT_NATIVE;
-bool DisplayServerWindows::_winui3_active = false;
+DisplayServerWindows::WindowsEmbedInputMode DisplayServerWindows::_windows_embed_input_mode = DisplayServerWindows::WINDOWS_EMBED_INPUT_NATIVE;
+bool DisplayServerWindows::_windows_embed_active = false;
 
-void DisplayServerWindows::set_winui3_input_mode(int32_t p_mode) {
-	_winui3_input_mode = (p_mode == WINUI3_INPUT_XAML) ? WINUI3_INPUT_XAML : WINUI3_INPUT_NATIVE;
+void DisplayServerWindows::set_windows_embed_input_mode(int32_t p_mode) {
+	_windows_embed_input_mode = (p_mode == WINDOWS_EMBED_INPUT_XAML) ? WINDOWS_EMBED_INPUT_XAML : WINDOWS_EMBED_INPUT_NATIVE;
 }
 
 void DisplayServerWindows::set_pending_composition_scale(float p_scale_x, float p_scale_y) {
@@ -7530,7 +7530,7 @@ void DisplayServerWindows::set_pending_swap_chain_panel(ISwapChainPanelNative *p
 	}
 }
 
-void DisplayServerWindows::set_ui_dispatcher(WinUI3UIDispatchFunc p_dispatch) {
+void DisplayServerWindows::set_ui_dispatcher(WindowsEmbedUIDispatchFunc p_dispatch) {
 	_ui_dispatch = p_dispatch;
 }
 #endif
@@ -7993,7 +7993,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 	// Effective resolution used when creating the main window — may be overridden below.
 	Vector2i effective_resolution = p_resolution;
 
-	// Pre-initialization embedded-parent override (e.g. WinUI3 host set via set_embedded_parent_hwnd).
+	// Pre-initialization embedded-parent override (e.g. WindowsEmbed host set via set_embedded_parent_hwnd).
 	if (_embedded_parent_hwnd != nullptr) {
 		parent_hwnd = _embedded_parent_hwnd;
 		// Use the host window's client area as the initial size so the Godot surface
@@ -8082,7 +8082,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 					main_window_created = true;
 				}
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 				// Apply any swap chain panel + composition scale set before the DisplayServer existed.
 				// Must happen after _create_window (WindowData exists) and before
 				// _create_rendering_context_window (Surface is about to be created).
@@ -8095,7 +8095,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 						wd_main.swap_chain_panel = _pending_swap_chain_panel;
 						// wd_main.swap_chain_panel now owns the ref held by _pending_swap_chain_panel.
 						_pending_swap_chain_panel = nullptr;
-						_winui3_active = true;
+						_windows_embed_active = true;
 					}
 					wd_main.composition_scale_x = _pending_composition_scale_x;
 					wd_main.composition_scale_y = _pending_composition_scale_y;
@@ -8472,7 +8472,7 @@ void DisplayServerWindows::window_set_swap_chain_panel(DisplayServerEnums::Windo
 
 	ERR_FAIL_COND(!windows.has(p_window_id));
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	WindowData &wd = windows[p_window_id];
 
 	if (wd.swap_chain_panel) {
@@ -8525,7 +8525,7 @@ void DisplayServerWindows::window_set_composition_scale(DisplayServerEnums::Wind
 	_THREAD_SAFE_METHOD_
 
 	ERR_FAIL_COND(!windows.has(p_window_id));
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	WindowData &wd = windows[p_window_id];
 	wd.composition_scale_x = p_scale_x;
 	wd.composition_scale_y = p_scale_y;
@@ -8541,9 +8541,9 @@ void DisplayServerWindows::window_set_composition_scale(DisplayServerEnums::Wind
 #endif
 }
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 // Read current modifier key state — mirrors _get_mods() for use in static methods.
-static void _winui3_read_mods(bool &r_shift, bool &r_ctrl, bool &r_alt, bool &r_meta) {
+static void _windows_embed_read_mods(bool &r_shift, bool &r_ctrl, bool &r_alt, bool &r_meta) {
 	unsigned char ks[256];
 	if (GetKeyboardState((PBYTE)ks)) {
 		r_shift = (ks[VK_LSHIFT] & 0x80) || (ks[VK_RSHIFT] & 0x80);
@@ -8553,9 +8553,9 @@ static void _winui3_read_mods(bool &r_shift, bool &r_ctrl, bool &r_alt, bool &r_
 	}
 }
 
-void DisplayServerWindows::_winui3_inject_mouse_button(DisplayServerEnums::WindowID p_window_id, MouseButton p_button, bool p_pressed, float p_x, float p_y) {
+void DisplayServerWindows::_windows_embed_inject_mouse_button(DisplayServerEnums::WindowID p_window_id, MouseButton p_button, bool p_pressed, float p_x, float p_y) {
 	bool shift = false, ctrl = false, alt = false, meta = false;
-	_winui3_read_mods(shift, ctrl, alt, meta);
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
 
 	Ref<InputEventMouseButton> mb;
 	mb.instantiate();
@@ -8572,9 +8572,9 @@ void DisplayServerWindows::_winui3_inject_mouse_button(DisplayServerEnums::Windo
 	Input::get_singleton()->parse_input_event(mb);
 }
 
-void DisplayServerWindows::_winui3_inject_mouse_motion(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_rel_x, float p_rel_y) {
+void DisplayServerWindows::_windows_embed_inject_mouse_motion(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_rel_x, float p_rel_y) {
 	bool shift = false, ctrl = false, alt = false, meta = false;
-	_winui3_read_mods(shift, ctrl, alt, meta);
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
 
 	Ref<InputEventMouseMotion> mm;
 	mm.instantiate();
@@ -8626,9 +8626,9 @@ static void _send_scroll_event(DisplayServerEnums::WindowID p_win,
 	Input::get_singleton()->parse_input_event(mbd);
 }
 
-void DisplayServerWindows::_winui3_inject_mouse_wheel(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_delta_x, float p_delta_y) {
+void DisplayServerWindows::_windows_embed_inject_mouse_wheel(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_delta_x, float p_delta_y) {
 	bool shift = false, ctrl = false, alt = false, meta = false;
-	_winui3_read_mods(shift, ctrl, alt, meta);
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
 
 	if (p_delta_y != 0.0f) {
 		_send_scroll_event(p_window_id, p_delta_y > 0.0f ? MouseButton::WHEEL_UP : MouseButton::WHEEL_DOWN, Math::abs(p_delta_y), p_x, p_y, shift, ctrl, alt, meta);
@@ -8638,9 +8638,9 @@ void DisplayServerWindows::_winui3_inject_mouse_wheel(DisplayServerEnums::Window
 	}
 }
 
-void DisplayServerWindows::_winui3_inject_key(DisplayServerEnums::WindowID p_window_id, Key p_keycode, bool p_pressed, bool p_echo, char32_t p_char) {
+void DisplayServerWindows::_windows_embed_inject_key(DisplayServerEnums::WindowID p_window_id, Key p_keycode, bool p_pressed, bool p_echo, char32_t p_char) {
 	bool shift = false, ctrl = false, alt = false, meta = false;
-	_winui3_read_mods(shift, ctrl, alt, meta);
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
 
 	Ref<InputEventKey> k;
 	k.instantiate();
@@ -8659,7 +8659,7 @@ void DisplayServerWindows::_winui3_inject_key(DisplayServerEnums::WindowID p_win
 	}
 	Input::get_singleton()->parse_input_event(k);
 }
-#endif // WINUI3_ENABLED
+#endif // WINDOWS_EMBED_ENABLED
 
 DisplayServerWindows::~DisplayServerWindows() {
 	LocalVector<List<FileDialogData *>::Element *> to_remove;

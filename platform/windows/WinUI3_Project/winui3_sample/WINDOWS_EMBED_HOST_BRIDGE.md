@@ -1,16 +1,16 @@
-# WinUI3 Host Bridge — message passing between host and engine
+# WindowsEmbed Host Bridge — message passing between host and engine
 
 A bidirectional, JSON-on-the-wire message bus between an embedded Godot
-engine and a WinUI3 host process. Used for higher-level commands like
+engine and a WindowsEmbed host process. Used for higher-level commands like
 `set_device_info`, `get_device_info`, or any custom RPC — **not** for input
 events (mouse / keyboard / wheel) which have their own dedicated path via
 `libgodot_inject_input_event`.
 
 This sits alongside the engine-lifecycle and input APIs documented in
-[godot_winui3_embed.h](godot_winui3_embed.h) and [godot_winui3_embed.cs](godot_winui3_embed.cs).
+[godot_windows_embed_embed.h](godot_windows_embed_embed.h) and [godot_windows_embed_embed.cs](godot_windows_embed_embed.cs).
 The implementation is in
-[winui3_host_bridge.h](winui3_host_bridge.h) /
-[.cpp](winui3_host_bridge.cpp).
+[windows_embed_host_bridge.h](windows_embed_host_bridge.h) /
+[.cpp](windows_embed_host_bridge.cpp).
 
 ## Why it exists
 
@@ -22,17 +22,17 @@ Other platforms have analogous bridges:
 | Web | `JavaScriptBridge` singleton (`eval`, `create_callback`, wrapped JS objects) |
 | iOS | `apple_embedded` plugins (Obj-C methods/signals exposed as a singleton) |
 
-WinUI3 follows the same shape: the engine side gets a Godot `Object` named
-`WinUI3Host` registered as an Engine singleton; the host side gets a small
+WindowsEmbed follows the same shape: the engine side gets a Godot `Object` named
+`WindowsEmbedHost` registered as an Engine singleton; the host side gets a small
 C ABI that talks to that singleton.
 
 ## Architecture at a glance
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  WinUI3 host process (.exe, links the Godot DLL)                 │
+│  WindowsEmbed host process (.exe, links the Godot DLL)                 │
 │                                                                  │
-│   ┌──────────────────┐         GodotWinUI3Embed.CallEngine(…)    │
+│   ┌──────────────────┐         GodotWindowsEmbedEmbed.CallEngine(…)    │
 │   │ MainWindow.cs    │ ─────▶ libgodot_call_engine(…) ─┐     │
 │   │ (your code)      │                                     │     │
 │   │                  │ ◀──── HostMessageHandler delegate ──┼─┐   │
@@ -41,7 +41,7 @@ C ABI that talks to that singleton.
 │  ─────────────────────── DLL boundary ───────────────────  │ │   │
 │                                                            │ │   │
 │   ┌──────────────────┐                                     │ │   │
-│   │ WinUI3HostBridge │   ◀──────── dispatch_host_call ─────┘ │   │
+│   │ WindowsEmbedHostBridge │   ◀──────── dispatch_host_call ─────┘ │   │
 │   │  (singleton)     │   ─────── invoke host_callback ───────┘   │
 │   │                  │                                            │
 │   └──────────────────┘                                            │
@@ -49,8 +49,8 @@ C ABI that talks to that singleton.
 │       │       │ register_handler / send_to_host                   │
 │       │       ▼                                                   │
 │   ┌──────────────────┐                                            │
-│   │ GDScript / C#    │  WinUI3Host.register_handler(…)            │
-│   │ scene scripts    │  WinUI3Host.send_to_host(…)                │
+│   │ GDScript / C#    │  WindowsEmbedHost.register_handler(…)            │
+│   │ scene scripts    │  WindowsEmbedHost.send_to_host(…)                │
 │   └──────────────────┘                                            │
 └───────────────────────────────────────────────────────────────────┘
 ```
@@ -62,7 +62,7 @@ Two directions, two patterns:
   registered for that method, invokes it via `Callable.callv()`. Return value
   is JSON-encoded and shipped back.
 - **Engine → Host** — GDScript calls
-  `WinUI3Host.send_to_host(method, args)`. The bridge JSON-encodes the args
+  `WindowsEmbedHost.send_to_host(method, args)`. The bridge JSON-encodes the args
   and invokes the registered C callback. The host populates the return value
   from inside the callback via `libgodot_set_call_return(json)`.
 
@@ -94,28 +94,28 @@ yourself (e.g. `{"x": 1.0, "y": 2.0}` ↔ `Vector2`) at the boundary.
 ```
 1. libgodot_set_log_callback(...)            ; optional, for capturing setup errors
 2. libgodot_set_embedded_parent_window(hwnd)
-3. libgodot_engine_setup(argc, argv)         ; ◀── WinUI3Host singleton becomes available here
-4. GodotWinUI3Embed.SetHostMessageHandler(...)   ; engine→host receiver — register before engine_start
+3. libgodot_engine_setup(argc, argv)         ; ◀── WindowsEmbedHost singleton becomes available here
+4. GodotWindowsEmbedEmbed.SetHostMessageHandler(...)   ; engine→host receiver — register before engine_start
 5. libgodot_attach_surface(0, panel)
 6. libgodot_engine_start()                   ; runs scripts; _ready() registers GDScript handlers
 7. (per frame) libgodot_engine_iteration()
-8. (anytime) GodotWinUI3Embed.CallEngine(...)    ; works once step 6 has run
+8. (anytime) GodotWindowsEmbedEmbed.CallEngine(...)    ; works once step 6 has run
 ```
 
-- The `WinUI3Host` Object is registered with `ClassDB` during platform-API
+- The `WindowsEmbedHost` Object is registered with `ClassDB` during platform-API
   registration inside `Main::setup()` (called by step 3). Singleton
   registration happens at the same time, so the singleton exists *before*
   any GDScript runs.
 - `SetHostMessageHandler` should be installed **before** `EngineStart` so
   that messages emitted from `_ready()` are not dropped.
 - `CallEngine` only finds a handler after the relevant GDScript has run
-  `WinUI3Host.register_handler(...)` (typically in `_ready`).
+  `WindowsEmbedHost.register_handler(...)` (typically in `_ready`).
 
 ## Threading model
 
 **The bridge is single-threaded.** All calls in both directions must run on
 the engine iteration thread — the same thread that drives
-`libgodot_engine_iteration`. In a typical WinUI3 host that is the UI
+`libgodot_engine_iteration`. In a typical WindowsEmbed host that is the UI
 thread (driven by a `DispatcherQueueTimer`).
 
 If you receive an event on a worker thread (e.g. a Bluetooth callback) and
@@ -124,7 +124,7 @@ need to call `CallEngine`, marshal first:
 ```csharp
 dispatcherQueue.TryEnqueue(() =>
 {
-    GodotWinUI3Embed.CallEngine("device_connected", "[42]");
+    GodotWindowsEmbedEmbed.CallEngine("device_connected", "[42]");
 });
 ```
 
@@ -132,23 +132,23 @@ The bridge does not queue or buffer — calls execute synchronously. There is
 exactly one shared "pending return value" slot per host callback; nested
 host callbacks are not supported.
 
-## GDScript API — `WinUI3Host` singleton
+## GDScript API — `WindowsEmbedHost` singleton
 
 ```gdscript
 # Send a message to the host. args is positional — one element per host argument.
 # Returns whatever the host writes back via libgodot_set_call_return,
 # or null if the host did not set a return value.
-WinUI3Host.send_to_host(method: StringName, args: Array = []) -> Variant
+WindowsEmbedHost.send_to_host(method: StringName, args: Array = []) -> Variant
 
 # Register a Callable to handle host→engine calls for `method`.
 # Replaces any existing handler for that method.
-WinUI3Host.register_handler(method: StringName, handler: Callable) -> void
+WindowsEmbedHost.register_handler(method: StringName, handler: Callable) -> void
 
 # Remove the handler for `method`. No-op if none was registered.
-WinUI3Host.unregister_handler(method: StringName) -> void
+WindowsEmbedHost.unregister_handler(method: StringName) -> void
 
 # True if a handler is currently registered for `method`.
-WinUI3Host.has_handler(method: StringName) -> bool
+WindowsEmbedHost.has_handler(method: StringName) -> bool
 
 # Catch-all signal. Fires for EVERY host→engine call, regardless of whether
 # a handler is registered for that method. Useful for logging / debugging.
@@ -160,7 +160,7 @@ accept positional arguments matching whatever the host sends. Return value
 is stringified back to JSON; a return type of `void` (nothing) becomes
 `null` on the host side.
 
-## C# API — `GodotWinUI3Embed`
+## C# API — `GodotWindowsEmbedEmbed`
 
 ```csharp
 public delegate string? HostMessageHandler(string method, string argsJson);
@@ -180,14 +180,14 @@ inside the handler are caught and logged via `Debug.WriteLine` — they do
 
 ## C ABI — for non-C# hosts
 
-Defined in [godot_winui3_embed.h](godot_winui3_embed.h):
+Defined in [godot_windows_embed_embed.h](godot_windows_embed_embed.h):
 
 ```c
-typedef void (*godot_winui3_host_msg_func)(
+typedef void (*godot_windows_embed_host_msg_func)(
     const char *p_method,
     const char *p_args_json);
 
-void libgodot_set_host_message_callback(godot_winui3_host_msg_func cb);
+void libgodot_set_host_message_callback(godot_windows_embed_host_msg_func cb);
 void libgodot_set_call_return(const char *p_json);
 int32_t libgodot_call_engine(
     const char *p_method,
@@ -224,10 +224,10 @@ extends Node
 var device_info := {}
 
 func _ready() -> void:
-    WinUI3Host.register_handler("set_device_info", _on_set_device_info)
-    WinUI3Host.register_handler("get_device_info", _on_get_device_info)
+    WindowsEmbedHost.register_handler("set_device_info", _on_set_device_info)
+    WindowsEmbedHost.register_handler("get_device_info", _on_get_device_info)
     # Tell the host we are ready to receive commands.
-    WinUI3Host.send_to_host("scene_ready", [{"scene": "main"}])
+    WindowsEmbedHost.send_to_host("scene_ready", [{"scene": "main"}])
 
 func _on_set_device_info(info: Dictionary) -> Dictionary:
     device_info = info
@@ -240,10 +240,10 @@ func _on_get_device_info() -> Dictionary:
 C# host side:
 
 ```csharp
-using Godot.WinUI3;
+using Godot.WindowsEmbed;
 using System.Text.Json;
 
-GodotWinUI3Embed.SetHostMessageHandler((method, argsJson) =>
+GodotWindowsEmbedEmbed.SetHostMessageHandler((method, argsJson) =>
 {
     if (method == "scene_ready")
     {
@@ -255,14 +255,14 @@ GodotWinUI3Embed.SetHostMessageHandler((method, argsJson) =>
 
 // After EngineStart() and at least one iteration, the GDScript handlers exist:
 
-var ackJson = GodotWinUI3Embed.CallEngine(
+var ackJson = GodotWindowsEmbedEmbed.CallEngine(
     "set_device_info",
     JsonSerializer.Serialize(new[] {
         new { vendor = "Foo", model = "Bar" }
     }));
 // ackJson => {"ok":true}
 
-var infoJson = GodotWinUI3Embed.CallEngine("get_device_info", "[]");
+var infoJson = GodotWindowsEmbedEmbed.CallEngine("get_device_info", "[]");
 // infoJson => {"vendor":"Foo","model":"Bar"}
 ```
 
@@ -280,7 +280,7 @@ func _on_start_telemetry_upload(payload: Dictionary) -> void:
 ```
 
 ```csharp
-GodotWinUI3Embed.SetHostMessageHandler((method, argsJson) =>
+GodotWindowsEmbedEmbed.SetHostMessageHandler((method, argsJson) =>
 {
     if (method == "log_event")
     {
@@ -295,7 +295,7 @@ GodotWinUI3Embed.SetHostMessageHandler((method, argsJson) =>
 
 ```gdscript
 func _ready() -> void:
-    WinUI3Host.host_message_received.connect(
+    WindowsEmbedHost.host_message_received.connect(
         func(method: StringName, args: Array):
             print("[host→engine] ", method, " ", args)
     )
@@ -331,9 +331,9 @@ integration.
 
 ## Files
 
-- [winui3_host_bridge.h](winui3_host_bridge.h) — singleton class declaration
-- [winui3_host_bridge.cpp](winui3_host_bridge.cpp) — singleton + dispatch
-- [godot_winui3_embed.h](godot_winui3_embed.h) — C ABI
-- [godot_winui3_embed.cpp](godot_winui3_embed.cpp) — C ABI implementation
-- [godot_winui3_embed.cs](godot_winui3_embed.cs) — C# P/Invoke wrapper
+- [windows_embed_host_bridge.h](windows_embed_host_bridge.h) — singleton class declaration
+- [windows_embed_host_bridge.cpp](windows_embed_host_bridge.cpp) — singleton + dispatch
+- [godot_windows_embed_embed.h](godot_windows_embed_embed.h) — C ABI
+- [godot_windows_embed_embed.cpp](godot_windows_embed_embed.cpp) — C ABI implementation
+- [godot_windows_embed_embed.cs](godot_windows_embed_embed.cs) — C# P/Invoke wrapper
 - [api/api.cpp](api/api.cpp) — singleton registration entry point

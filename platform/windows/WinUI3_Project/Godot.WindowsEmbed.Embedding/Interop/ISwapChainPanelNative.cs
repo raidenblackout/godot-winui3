@@ -1,4 +1,4 @@
-namespace Godot.WinUI3.Embedding.Interop;
+namespace Godot.WindowsEmbed.Embedding.Interop;
 
 using System;
 using System.Runtime.InteropServices;

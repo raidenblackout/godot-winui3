@@ -1,11 +1,11 @@
 // MapViewPage.xaml.cs
 // Hosts the embedded Godot engine inside a SwapChainPanel and wires up the
 // host<->engine message bus. The engine itself runs on a dedicated thread owned
-// by GodotEngineHost (in the Godot.WinUI3.Embedding library) — this page only
+// by GodotEngineHost (in the Godot.WindowsEmbed.Embedding library) — this page only
 // forwards input/sizing onto that thread and answers `request_data` calls from
 // GDScript with indoor-map / rooms JSON from the bundled Assets folder.
 
-namespace GodotWinUI3Sample.Views;
+namespace GodotWindowsEmbedSample.Views;
 
 using System;
 using System.Diagnostics;
@@ -14,10 +14,10 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Godot.WinUI3.Embedding;
-using Godot.WinUI3.Embedding.Communication;
-using Godot.WinUI3.Embedding.Interop;
-using GodotWinUI3Sample.ViewModels;
+using Godot.WindowsEmbed.Embedding;
+using Godot.WindowsEmbed.Embedding.Communication;
+using Godot.WindowsEmbed.Embedding.Interop;
+using GodotWindowsEmbedSample.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -130,7 +130,7 @@ public sealed partial class MapViewPage : Page
 				break;
 			default:
 				// Stay silent for unknown sub-commands. The GDScript
-				// WindowsWinUI3Interactor will fall back to SimulatedResponse
+				// WindowsWindowsEmbedInteractor will fall back to SimulatedResponse
 				// after a short timeout if we don't reply.
 				Debug.WriteLine($"[MapViewPage] No host data for sub-command '{subCmd}' (deferring to SimulatedResponse).");
 				break;
