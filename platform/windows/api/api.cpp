@@ -31,7 +31,7 @@
 #include "api.h"
 
 #ifdef WINDOWS_EMBED_ENABLED
-#include "../windows_embed_host_bridge.h"
+#include "../windows_host_bridge.h"
 #endif
 
 void register_windows_api() {

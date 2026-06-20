@@ -182,7 +182,7 @@ The embedding layer exposes a flat C API (`extern "C"`, `__declspec(dllexport)`)
 └───────────────────────────────────────────────────┼──────────────────┘
                                                     │
                                        ┌────────────▼─────────────────────────┐
-                                       │  godot_windows_embed_embed  (C ABI / DLL)   │
+                                       │  godot_windows_embed  (C ABI / DLL)   │
                                        │                                       │
                                        │  engine_setup / start / iteration     │
                                        │  set_input_mode (NATIVE | XAML)       │

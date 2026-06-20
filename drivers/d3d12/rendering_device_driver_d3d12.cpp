@@ -40,7 +40,7 @@
 #include <drivers/d3d12/godot_nir.h>
 #include <dxgi1_6.h>
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 #include <windows.ui.xaml.media.dxinterop.h>
 #endif
 
@@ -2796,7 +2796,7 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 	bool create_for_composition = false;
 #endif
 	bool create_for_swap_chain_panel = false;
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	if (surface->swap_chain_panel != nullptr) {
 		create_for_swap_chain_panel = true;
 		// SwapChainPanel can only consume a swap chain created via
@@ -2809,7 +2809,7 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 #endif
 	const bool use_composition_alpha = create_for_composition && (!create_for_swap_chain_panel || OS::get_singleton()->is_layered_allowed());
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	const bool fresh_swap_chain = (swap_chain->d3d_swap_chain == nullptr);
 #endif
 	DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
@@ -2843,7 +2843,7 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		if (create_for_composition) {
 			res = context_driver->dxgi_factory_get()->CreateSwapChainForComposition(command_queue->d3d_queue.Get(), &swap_chain_desc, nullptr, swap_chain_1.GetAddressOf());
 			if (!SUCCEEDED(res)) {
-				ERR_FAIL_COND_V_MSG(create_for_swap_chain_panel, ERR_CANT_CREATE, "Failed to create swap chain for WinUI3 SwapChainPanel.");
+				ERR_FAIL_COND_V_MSG(create_for_swap_chain_panel, ERR_CANT_CREATE, "Failed to create swap chain for WindowsEmbed SwapChainPanel.");
 				WARN_PRINT_ONCE("Window transparency is not supported without DirectComposition on D3D12.");
 				swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 				has_comp_alpha[(uint64_t)p_cmd_queue.id] = false;
@@ -2873,7 +2873,7 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		swap_chain->color_space = new_color_space;
 	}
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	if (create_for_swap_chain_panel) {
 		// Binding the swap chain into the SwapChainPanel's composition visual
 		// (SetSwapChain) touches state owned by the thread that created the panel

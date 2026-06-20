@@ -255,6 +255,12 @@ Vector2i DisplayServerWindows::_get_screen_expand_offset(int p_screen) const {
 }
 
 void DisplayServerWindows::_set_mouse_mode_impl(DisplayServerEnums::MouseMode p_mode) {
+#ifdef WINDOWS_EMBED_ENABLED
+	const bool windows_embed_xaml_input = _windows_embed_uses_xaml_input();
+#else
+	const bool windows_embed_xaml_input = false;
+#endif
+
 	if (p_mode == DisplayServerEnums::MOUSE_MODE_HIDDEN || p_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED || p_mode == DisplayServerEnums::MOUSE_MODE_CONFINED_HIDDEN) {
 		// Hide cursor before moving.
 		if (hCursor == nullptr) {
@@ -282,7 +288,7 @@ void DisplayServerWindows::_set_mouse_mode_impl(DisplayServerEnums::MouseMode p_
 		ClientToScreen(wd.hWnd, (POINT *)&clipRect.left);
 		ClientToScreen(wd.hWnd, (POINT *)&clipRect.right);
 		ClipCursor(&clipRect);
-		if (p_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED) {
+		if (p_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED && !windows_embed_xaml_input) {
 			center = window_get_size() / 2;
 			POINT pos = { (int)center.x, (int)center.y };
 			ClientToScreen(wd.hWnd, &pos);
@@ -5697,7 +5703,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 						}
 					}
 				}
-			} else if (mouse_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED && raw->header.dwType == RIM_TYPEMOUSE) {
+			} else if (mouse_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED &&
+#ifdef WINDOWS_EMBED_ENABLED
+					!_windows_embed_uses_xaml_input() &&
+#endif
+					raw->header.dwType == RIM_TYPEMOUSE) {
 				Ref<InputEventMouseMotion> mm;
 				mm.instantiate();
 
@@ -7510,6 +7520,10 @@ float DisplayServerWindows::_pending_composition_scale_x = 1.0f;
 float DisplayServerWindows::_pending_composition_scale_y = 1.0f;
 DisplayServerWindows::WindowsEmbedInputMode DisplayServerWindows::_windows_embed_input_mode = DisplayServerWindows::WINDOWS_EMBED_INPUT_NATIVE;
 bool DisplayServerWindows::_windows_embed_active = false;
+
+bool DisplayServerWindows::_windows_embed_uses_xaml_input() {
+	return _windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML;
+}
 
 void DisplayServerWindows::set_windows_embed_input_mode(int32_t p_mode) {
 	_windows_embed_input_mode = (p_mode == WINDOWS_EMBED_INPUT_XAML) ? WINDOWS_EMBED_INPUT_XAML : WINDOWS_EMBED_INPUT_NATIVE;

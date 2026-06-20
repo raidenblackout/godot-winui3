@@ -33,10 +33,10 @@ if "dcomp" in env.get("supported", []):
     env_d3d12_rdd.Append(CPPDEFINES=["DCOMP_ENABLED"])
     env.Append(CPPDEFINES=["DCOMP_ENABLED"])  # Used in header included in platform.
 
-# WinUI3 SwapChainPanel.
-if "winui3" in env.get("supported", []):
-    env_d3d12_rdd.Append(CPPDEFINES=["WINUI3_ENABLED"])
-    env.Append(CPPDEFINES=["WINUI3_ENABLED"])  # Used in header included in platform.
+# WindowsEmbed SwapChainPanel.
+if "windows_embed" in env.get("supported", []):
+    env_d3d12_rdd.Append(CPPDEFINES=["WINDOWS_EMBED_ENABLED"])
+    env.Append(CPPDEFINES=["WINDOWS_EMBED_ENABLED"])  # Used in header included in platform.
 
 # Mesa (SPIR-V to DXIL functionality).
 mesa_libs = env["mesa_libs"]

@@ -210,9 +210,9 @@ public static class GodotWindowsEmbedEmbed
 	}
 
 	/// <summary>Sets the input routing mode for the embedded Godot window.</summary>
-	public static void SetInputMode(int mode)
+	public static void SetInputMode(GodotWindowsEmbedInputMode mode)
 	{
-		GodotWindowsEmbedNative.libgodot_set_input_mode(mode);
+		GodotWindowsEmbedNative.libgodot_set_input_mode((int)mode);
 	}
 
 	/// <summary>

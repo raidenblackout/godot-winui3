@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_windows_embed_embed.cpp                                                */
+/*  godot_windows_embed.cpp                                                */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -30,10 +30,10 @@
 
 #ifdef WINDOWS_EMBED_ENABLED
 
-#include "godot_windows_embed_embed.h"
+#include "godot_windows_embed.h"
 
 #include "display_server_windows.h"
-#include "windows_embed_host_bridge.h"
+#include "windows_host_bridge.h"
 
 #include "core/error/error_macros.h"
 #include "core/extension/godot_instance.h"
@@ -370,7 +370,7 @@ void libgodot_set_input_mode(int32_t p_mode) {
 // Host <-> Engine messaging
 //
 // JSON-on-the-wire bridge backed by the WindowsEmbedHostBridge singleton. See
-// windows_embed_host_bridge.h for the engine-side surface and the .h above for
+// windows_host_bridge.h for the engine-side surface and the .h above for
 // the documented host-facing contract.
 // ---------------------------------------------------------------------------
 
@@ -381,7 +381,7 @@ void libgodot_set_input_mode(int32_t p_mode) {
 // immediately after constructing the bridge so the callback is never dropped.
 static libgodot_host_msg_func s_pending_host_callback = nullptr;
 
-// Called by register_windows_embed_host_bridge() (windows_embed_host_bridge.cpp) once the
+// Called by register_windows_embed_host_bridge() (windows_host_bridge.cpp) once the
 // bridge singleton is live. Applies any callback stashed before setup finished.
 void godot_windows_embed_apply_pending_host_callback(WindowsEmbedHostBridge *p_bridge) {
 	if (p_bridge != nullptr && s_pending_host_callback != nullptr) {

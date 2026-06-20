@@ -49,11 +49,11 @@ jobs:
     if: needs.static-checks.outputs.sources-changed == 'true' || github.event_name != 'pull_request'
     uses: ./.github/workflows/windows_builds.yml
 
-  winui3-build:
-    name: Windows WinUI3
+  windows-embed-build:
+    name: Windows Embed
     needs: static-checks
     if: needs.static-checks.outputs.sources-changed == 'true' || github.event_name != 'pull_request'
-    uses: ./.github/workflows/winui3_builds.yml
+    uses: ./.github/workflows/windows_embed_builds.yml
 
   web-build:
     name: 🌐 Web

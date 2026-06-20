@@ -1,4 +1,4 @@
-name: Windows WinUI3 Builds
+name: Windows Embed Builds
 on:
   workflow_call:
   workflow_dispatch:
@@ -13,9 +13,9 @@ env:
   PYTHONIOENCODING: utf8
 
 jobs:
-  build-winui3-dll:
+  build-windows-embed-dll:
     runs-on: windows-latest
-    name: WinUI3 DLL (target=template_release, library_type=shared_library)
+    name: Windows Embed DLL (target=template_release, library_type=shared_library)
     timeout-minutes: 120
 
     steps:
@@ -27,7 +27,7 @@ jobs:
       - name: Restore Godot build cache
         uses: ./.github/actions/godot-cache-restore
         with:
-          cache-name: windows-winui3-dll
+          cache-name: windows-embed-dll
         continue-on-error: true
 
       - name: Setup Python and SCons
@@ -64,23 +64,23 @@ jobs:
             echo "ACCESSKIT_ENABLED=no" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build WinUI3 engine DLL
+      - name: Build Windows Embed engine DLL
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONS_FLAGS }} winui3=yes d3d12=yes library_type=shared_library disable_path_overrides=no accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }} angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }}
+          scons-flags: ${{ env.SCONS_FLAGS }} windows_embed=yes d3d12=yes library_type=shared_library disable_path_overrides=no accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }} angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }}
           platform: windows
           target: template_release
 
       - name: Save Godot build cache
         uses: ./.github/actions/godot-cache-save
         with:
-          cache-name: windows-winui3-dll
+          cache-name: windows-embed-dll
         continue-on-error: true
 
-      - name: Upload WinUI3 DLL artifact
+      - name: Upload Windows Embed DLL artifact
         uses: ./.github/actions/upload-artifact
         with:
-          name: windows-winui3-dll
+          name: windows-embed-dll
           path: |
             bin/godot.windows.template_release.x86_64.dll
             bin/D3D12Core.dll

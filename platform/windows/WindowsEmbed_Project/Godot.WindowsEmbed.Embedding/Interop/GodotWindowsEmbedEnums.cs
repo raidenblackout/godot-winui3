@@ -25,3 +25,10 @@ public enum GodotMouseButton : int
 	XButton1 = 8,
 	XButton2 = 9,
 }
+
+/// <summary>Input routing mode for an embedded Windows host.</summary>
+public enum GodotWindowsEmbedInputMode : int
+{
+	Native = 0,
+	Xaml = 1,
+}

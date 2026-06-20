@@ -24,7 +24,7 @@ Compared with upstream Godot master, this branch adds:
   `ISwapChainPanelNative::SetSwapChain`.
 - Composition scale handling through `IDXGISwapChain2::SetMatrixTransform`, so
   a physical-pixel backbuffer fits the WindowsEmbed panel's DIP-sized layout area.
-- A host-facing C ABI in `platform/windows/godot_windows_embed_embed.h` for engine
+- A host-facing C ABI in `platform/windows/godot_windows_embed.h` for engine
   lifecycle, panel binding, resize/DPI updates, input injection, logging, and
   host/engine calls.
 - DisplayServer support for an embedded parent `HWND`, child-window sizing, and
@@ -91,7 +91,7 @@ and copies it next to the WindowsEmbed executable as `godot.dll`.
 The C ABI is declared in:
 
 ```text
-platform/windows/godot_windows_embed_embed.h
+platform/windows/godot_windows_embed.h
 ```
 
 The basic host order is:
@@ -244,14 +244,14 @@ func print_log(level: String, tag: String, message: String) -> void:
 
 ## Key Files
 
-- `platform/windows/godot_windows_embed_embed.h`
-- `platform/windows/godot_windows_embed_embed.cpp`
-- `platform/windows/windows_embed_host_bridge.h`
-- `platform/windows/windows_embed_host_bridge.cpp`
+- `platform/windows/godot_windows_embed.h`
+- `platform/windows/godot_windows_embed.cpp`
+- `platform/windows/windows_host_bridge.h`
+- `platform/windows/windows_host_bridge.cpp`
 - `platform/windows/display_server_windows.*`
 - `drivers/d3d12/rendering_context_driver_d3d12.*`
 - `drivers/d3d12/rendering_device_driver_d3d12.cpp`
-- `platform/windows/windows_embed_sample/Interop/godot_windows_embed_embed.cs`
+- `platform/windows/windows_embed_sample/Interop/godot_windows_embed.cs`
 - `platform/windows/windows_embed_sample/Views/MapViewPage.xaml.cs`
 
 ## Upstream Godot

@@ -7,10 +7,10 @@ events (mouse / keyboard / wheel) which have their own dedicated path via
 `libgodot_inject_input_event`.
 
 This sits alongside the engine-lifecycle and input APIs documented in
-[godot_windows_embed_embed.h](godot_windows_embed_embed.h) and [godot_windows_embed_embed.cs](godot_windows_embed_embed.cs).
+[godot_windows_embed.h](godot_windows_embed.h) and [godot_windows_embed.cs](godot_windows_embed.cs).
 The implementation is in
-[windows_embed_host_bridge.h](windows_embed_host_bridge.h) /
-[.cpp](windows_embed_host_bridge.cpp).
+[windows_host_bridge.h](windows_host_bridge.h) /
+[.cpp](windows_host_bridge.cpp).
 
 ## Why it exists
 
@@ -180,7 +180,7 @@ inside the handler are caught and logged via `Debug.WriteLine` — they do
 
 ## C ABI — for non-C# hosts
 
-Defined in [godot_windows_embed_embed.h](godot_windows_embed_embed.h):
+Defined in [godot_windows_embed.h](godot_windows_embed.h):
 
 ```c
 typedef void (*godot_windows_embed_host_msg_func)(
@@ -331,9 +331,9 @@ integration.
 
 ## Files
 
-- [windows_embed_host_bridge.h](windows_embed_host_bridge.h) — singleton class declaration
-- [windows_embed_host_bridge.cpp](windows_embed_host_bridge.cpp) — singleton + dispatch
-- [godot_windows_embed_embed.h](godot_windows_embed_embed.h) — C ABI
-- [godot_windows_embed_embed.cpp](godot_windows_embed_embed.cpp) — C ABI implementation
-- [godot_windows_embed_embed.cs](godot_windows_embed_embed.cs) — C# P/Invoke wrapper
+- [windows_host_bridge.h](windows_host_bridge.h) — singleton class declaration
+- [windows_host_bridge.cpp](windows_host_bridge.cpp) — singleton + dispatch
+- [godot_windows_embed.h](godot_windows_embed.h) — C ABI
+- [godot_windows_embed.cpp](godot_windows_embed.cpp) — C ABI implementation
+- [godot_windows_embed.cs](godot_windows_embed.cs) — C# P/Invoke wrapper
 - [api/api.cpp](api/api.cpp) — singleton registration entry point

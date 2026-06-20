@@ -1,6 +1,6 @@
 // GodotWindowsEmbedNative.cs
 // Raw P/Invoke declarations matching the C ABI exported by
-// platform/windows/godot_windows_embed_embed.cpp. Prefer GodotWindowsEmbedEmbed instead.
+// platform/windows/godot_windows_embed.cpp. Prefer GodotWindowsEmbedEmbed instead.
 
 namespace Godot.WindowsEmbed.Embedding.Interop;
 

@@ -123,6 +123,7 @@ public sealed class GodotEngineHost : IDisposable
 		GodotWindowsEmbedEmbed.SetLogCallback(OnGodotLog);
 		GodotWindowsEmbedEmbed.SetEmbeddedParentWindow(hostHwnd);
 		GodotWindowsEmbedEmbed.SetUiDispatcher(RunOnUiThread);
+		GodotWindowsEmbedEmbed.SetInputMode(GodotWindowsEmbedInputMode.Xaml);
 
 		string[] args = { "godot", "--main-pack", ProjectPath, "--rendering-driver", RenderingDriver };
 		if (!GodotWindowsEmbedEmbed.EngineSetup(args))

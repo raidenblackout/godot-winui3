@@ -840,6 +840,7 @@ public:
 		WINDOWS_EMBED_INPUT_XAML = 1,
 	};
 	static WindowsEmbedInputMode _windows_embed_input_mode;
+	static bool _windows_embed_uses_xaml_input();
 	static void set_windows_embed_input_mode(int32_t p_mode);
 	static bool _windows_embed_active; // true once a SwapChainPanel has been bound during DSW construction.
 

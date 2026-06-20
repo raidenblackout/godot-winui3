@@ -40,7 +40,7 @@
 #include <dcomp.h>
 #endif
 
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 struct ISwapChainPanelNative;
 #endif
 
@@ -83,7 +83,7 @@ public:
 	virtual uint32_t surface_get_height(SurfaceID p_surface) const override;
 	virtual void surface_set_needs_resize(SurfaceID p_surface, bool p_needs_resize) override;
 	virtual bool surface_get_needs_resize(SurfaceID p_surface) const override;
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	void surface_set_composition_scale(SurfaceID p_surface, float p_scale_x, float p_scale_y);
 #endif
 	virtual void surface_destroy(SurfaceID p_surface) override;
@@ -95,16 +95,16 @@ public:
 	// non-trivial default ctor (e.g. via a default member initializer) would
 	// delete the union's default ctor. Callers must set every field they care
 	// about explicitly before passing this to surface_create().
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 	// Runs p_work(p_ctx) synchronously on the thread that owns the SwapChainPanel
-	// (the host UI thread). Supplied by the WinUI3 host when the engine iterates
+	// (the host UI thread). Supplied by the WindowsEmbed host when the engine iterates
 	// on a dedicated thread; nullptr means "run inline" (engine on the UI thread).
 	typedef void (*SwapChainBindDispatch)(void (*p_work)(void *p_ctx), void *p_ctx);
 #endif
 
 	struct WindowPlatformData {
 		HWND window;
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 		ISwapChainPanelNative *swap_chain_panel;
 		SwapChainBindDispatch ui_dispatch;
 #endif
@@ -131,7 +131,7 @@ public:
 		Microsoft::WRL::ComPtr<IDCompositionTarget> composition_target;
 		Microsoft::WRL::ComPtr<IDCompositionVisual> composition_visual;
 #endif
-#ifdef WINUI3_ENABLED
+#ifdef WINDOWS_EMBED_ENABLED
 		ISwapChainPanelNative *swap_chain_panel = nullptr;
 		// Marshals the panel-affine bind (SetSwapChain / SetMatrixTransform) onto
 		// the UI thread; nullptr means run inline. See WindowPlatformData.

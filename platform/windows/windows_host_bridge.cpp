@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  windows_embed_host_bridge.cpp                                                */
+/*  windows_host_bridge.cpp                                                */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -30,7 +30,7 @@
 
 #ifdef WINDOWS_EMBED_ENABLED
 
-#include "windows_embed_host_bridge.h"
+#include "windows_host_bridge.h"
 
 #include "core/config/engine.h"
 #include "core/error/error_macros.h"
@@ -168,7 +168,7 @@ String WindowsEmbedHostBridge::dispatch_host_call(const String &p_method, const 
 	return JSON::stringify(ret);
 }
 
-// Defined in godot_windows_embed_embed.cpp. Applies any host callback that was
+// Defined in godot_windows_embed.cpp. Applies any host callback that was
 // registered before this bridge was constructed.
 extern void godot_windows_embed_apply_pending_host_callback(WindowsEmbedHostBridge *p_bridge);
 
