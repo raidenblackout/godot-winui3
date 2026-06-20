@@ -131,7 +131,7 @@ public sealed partial class MapViewPage : Page
 				break;
 			default:
 				// Stay silent for unknown sub-commands. The GDScript
-				// WindowsWindowsEmbedInteractor will fall back to SimulatedResponse
+				// WindowsEmbedInteractor will fall back to SimulatedResponse
 				// after a short timeout if we don't reply.
 				Debug.WriteLine($"[MapViewPage] No host data for sub-command '{subCmd}' (deferring to SimulatedResponse).");
 				break;

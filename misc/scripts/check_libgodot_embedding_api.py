@@ -74,7 +74,7 @@ def main():
         assert_not_contains(text, legacy_abi_prefix + "_inject_mouse_", path)
         assert_not_contains(text, legacy_abi_prefix + "_inject_key", path)
         assert_not_contains(text, "godot_windows_embed_embed", path)
-        assert_not_contains(text, "windows_embed_host_bridge", path)
+        assert_not_contains(text, "windows_" + "embed_host_bridge", path)
 
     assert_contains(display_server_windows_cpp, "_windows_embed_uses_xaml_input()", "display_server_windows.cpp")
     assert_contains(
