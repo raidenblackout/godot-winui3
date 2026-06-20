@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -163,6 +164,7 @@ namespace GodotPlugins
         }
 
         [UnmanagedCallersOnly]
+        [RequiresUnreferencedCode("Calls System.Reflection.Assembly.GetType(String)")]
         private static unsafe IntPtr LoadToolsAssembly(char* nAssemblyPath,
             IntPtr unmanagedCallbacks, int unmanagedCallbacksSize)
         {

@@ -184,6 +184,13 @@ def get_tools(env: "SConsEnvironment"):
         if env.get("msvc_version"):
             msvc_ver = env.get("msvc_version")
 
+        if msvc_ver == "14.3" and env.scons_version < (4, 8, 0):
+            print_error("Visual Studio 2022 requires SCons 4.8.0+, please update your SCons version.")
+            sys.exit(255)
+        elif msvc_ver == "14.5" and env.scons_version < (4, 10, 1):
+            print_error("Visual Studio 2026 requires SCons 4.10.1+, please update your SCons version.")
+            sys.exit(255)
+
         env["TARGET_ARCH"] = msvc_arch_aliases.get(env["arch"], env["arch"])
         env["MSVC_VERSION"] = env["MSVS_VERSION"] = env.get("msvc_version")
         env["MSVC_SDK_VERSION"] = check_mssdk_version(env, env.get("mssdk_version"), msvc_ver)
@@ -198,7 +205,7 @@ def get_opts():
 
     # Dependencies folder.
     deps_folder = os.getenv("LOCALAPPDATA")
-    if deps_folder:
+    if deps_folder and not os.getenv("MSYSTEM"):
         deps_folder = os.path.join(deps_folder, "Godot", "build_deps")
     else:
         # Cross-compiling, the deps install script puts things in `bin`.

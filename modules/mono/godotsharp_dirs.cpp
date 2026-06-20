@@ -38,6 +38,7 @@
 
 #include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
+#include "core/io/file_access.h"
 #include "core/os/os.h"
 
 #ifdef TOOLS_ENABLED
@@ -54,7 +55,7 @@
 namespace GodotSharpDirs {
 
 String _get_expected_build_config() {
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 	return "Debug";
 #else
 
@@ -159,11 +160,23 @@ private:
 		String exe_dir = OS::get_singleton()->get_executable_path().get_base_dir();
 		String res_dir = OS::get_singleton()->get_bundle_resource_dir();
 
+		// Check GODOTSHARP_DIR env var first (highest priority).
+		// If set and contains GodotPlugins.dll, use it as the API assemblies directory.
+		String godotsharp_dir_env = OS::get_singleton()->get_environment("GODOTSHARP_DIR");
+		if (!godotsharp_dir_env.is_empty()) {
+			String plugins_dll = godotsharp_dir_env.path_join("GodotPlugins.dll");
+			if (FileAccess::exists(plugins_dll)) {
+				api_assemblies_dir = godotsharp_dir_env;
+			}
+		}
+
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 #ifdef TOOLS_ENABLED
+		// Editor builds use nested GodotSharp/Api/<Config> structure
 		String data_dir_root = exe_dir.path_join("GodotSharp");
 		data_editor_tools_dir = data_dir_root.path_join("Tools");
-		String api_assemblies_base_dir = data_dir_root.path_join("Api");
 		build_logs_dir = mono_user_dir.path_join("build_logs");
+		String api_assemblies_base_dir = data_dir_root.path_join("Api");
 #ifdef MACOS_ENABLED
 		if (!DirAccess::exists(data_editor_tools_dir)) {
 			data_editor_tools_dir = res_dir.path_join("GodotSharp").path_join("Tools");
@@ -172,8 +185,16 @@ private:
 			api_assemblies_base_dir = res_dir.path_join("GodotSharp").path_join("Api");
 		}
 #endif
-		api_assemblies_dir = api_assemblies_base_dir.path_join(GDMono::get_expected_api_build_config());
-#else // TOOLS_ENABLED
+		if (api_assemblies_dir.is_empty()) {
+			api_assemblies_dir = api_assemblies_base_dir.path_join(GDMono::get_expected_api_build_config());
+		}
+#else // LIBGODOT_HOSTFXR only (not TOOLS_ENABLED)
+		// Libgodot shared library builds use flat structure - assemblies directly in exe_dir
+		if (api_assemblies_dir.is_empty()) {
+			api_assemblies_dir = exe_dir;
+		}
+#endif // TOOLS_ENABLED
+#else // TOOLS_ENABLED || LIBGODOT_HOSTFXR
 		String platform = _get_platform_name();
 		String arch = Engine::get_singleton()->get_architecture_name();
 		String appname_safe = Path::get_csharp_project_name();
@@ -228,7 +249,7 @@ private:
 			api_assemblies_dir = data_dir_root;
 		}
 #endif // ANDROID_ENABLED
-#endif
+#endif // TOOLS_ENABLED || LIBGODOT_HOSTFXR
 	}
 
 public:

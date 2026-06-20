@@ -715,8 +715,10 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 	String txt;
 	String txt_sub;
 	Item *it_to = (p_line + 1 < (int)p_frame->lines.size()) ? p_frame->lines[p_line + 1].from : nullptr;
+	Item *it_prev = l.from ? l.from : current;
 	int remaining_characters = visible_characters - l.char_offset;
 	for (Item *it = l.from; it && it != it_to; it = _get_next_item(it)) {
+		it_prev = it;
 		switch (it->type) {
 			case ITEM_DROPCAP: {
 				// Add dropcap.
@@ -748,6 +750,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 				txt += "\n";
 				l.char_count++;
 				remaining_characters--;
+				it_prev = nullptr;
 			} break;
 			case ITEM_TEXT: {
 				ItemText *t = static_cast<ItemText *>(it);
@@ -873,6 +876,28 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 			default:
 				break;
 		}
+	}
+
+	// Add zero-width space to the end if line did not end with /n to ensure uniform height.
+	if (it_prev) {
+		Ref<Font> font = p_base_font;
+		int font_size = p_base_font_size;
+
+		ItemFont *font_it = _find_font(it_prev);
+		if (font_it) {
+			if (font_it->font.is_valid()) {
+				font = font_it->font;
+			}
+			if (font_it->font_size > 0) {
+				font_size = font_it->font_size;
+			}
+		}
+		ItemFontSize *font_size_it = _find_font_size(it_prev);
+		if (font_size_it && font_size_it->font_size > 0) {
+			font_size = font_size_it->font_size;
+		}
+		l.text_buf->add_string(String::chr(0x200B), font, font_size, String(), it_prev->rid);
+		txt += "\n";
 	}
 
 	// Apply BiDi override.
@@ -3638,7 +3663,9 @@ int RichTextLabel::_find_margin(Item *p_item, const Ref<Font> &p_base_font, int 
 			if (font_size_it && font_size_it->font_size > 0) {
 				font_size = font_size_it->font_size;
 			}
-			margin += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
+			if (tab_size > 0) {
+				margin += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
+			}
 
 		} else if (item->type == ITEM_LIST) {
 			Ref<Font> font = p_base_font;
@@ -3657,7 +3684,9 @@ int RichTextLabel::_find_margin(Item *p_item, const Ref<Font> &p_base_font, int 
 			if (font_size_it && font_size_it->font_size > 0) {
 				font_size = font_size_it->font_size;
 			}
-			margin += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
+			if (tab_size > 0) {
+				margin += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
+			}
 		}
 
 		item = item->parent;

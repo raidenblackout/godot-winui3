@@ -22,3 +22,8 @@ env_mono.add_source_files(env.modules_sources, "utils/*.cpp")
 if env.editor_build:
     env_mono.add_source_files(env.modules_sources, "editor/*.cpp")
     SConscript("editor/script_templates/SCsub")
+elif env.get("library_type", "") == "shared_library":
+    # For libgodot shared library builds, we need hostfxr_resolver and semver
+    # to discover the system .NET SDK (used via LIBGODOT_HOSTFXR define)
+    env_mono.add_source_files(env.modules_sources, "editor/hostfxr_resolver.cpp")
+    env_mono.add_source_files(env.modules_sources, "editor/semver.cpp")

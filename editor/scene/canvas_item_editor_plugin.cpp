@@ -50,6 +50,7 @@
 #include "editor/inspector/editor_context_menu_plugin.h"
 #include "editor/plugins/editor_plugin_list.h"
 #include "editor/run/editor_run_bar.h"
+#include "editor/scene/gui/control_editor_plugin.h"
 #include "editor/script/script_editor_plugin.h"
 #include "editor/settings/editor_settings.h"
 #include "editor/themes/editor_scale.h"
@@ -1964,6 +1965,19 @@ bool CanvasItemEditor::_gui_input_resize(const Ref<InputEvent> &p_event) {
 					current_begin.y = 2.0 * center.y - current_end.y;
 				}
 			}
+
+			bool anchors_mode = ControlEditorToolbar::get_singleton()->is_anchors_mode_enabled();
+			if (anchors_mode) {
+				Control *control = Object::cast_to<Control>(ci);
+				if (control) {
+					Size2 parent_rect_size = control->get_parent_anchorable_rect().size;
+					if (parent_rect_size.x == 0.0 || parent_rect_size.y == 0.0) {
+						EditorToaster::get_singleton()->popup_str(TTR("Can't modify anchor offsets when the parent has a size of 0. Disable the anchors mode in the toolbar."), EditorToaster::SEVERITY_WARNING);
+						return true;
+					}
+				}
+			}
+
 			ci->_edit_set_rect(Rect2(current_begin, current_end - current_begin));
 			return true;
 		}
@@ -5598,7 +5612,7 @@ void CanvasItemEditor::focus_selection() {
 
 void CanvasItemEditor::center_at(const Point2 &p_pos) {
 	Vector2 offset = viewport->get_size() / 2 - EditorNode::get_singleton()->get_scene_root()->get_global_canvas_transform().xform(p_pos);
-	view_offset -= (offset / zoom).round();
+	view_offset = (view_offset - offset / zoom).round();
 	update_viewport();
 }
 

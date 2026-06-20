@@ -33,6 +33,7 @@
 #include "../glue/runtime_interop.h"
 #include "../godotsharp_dirs.h"
 #include "../thirdparty/coreclr_delegates.h"
+#include "../thirdparty/error_codes.h"
 #include "../thirdparty/hostfxr.h"
 #include "../utils/path_utils.h"
 #include "gd_mono_cache.h"
@@ -41,7 +42,7 @@
 #include "core/object/class_db.h"
 #endif
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 #include "../editor/hostfxr_resolver.h"
 #include "../editor/semver.h"
 #endif
@@ -109,7 +110,7 @@ const char_t *get_data(const HostFxrCharString &p_char_str) {
 	return (const char_t *)p_char_str.get_data();
 }
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 bool try_get_dotnet_root_from_command_line(String &r_dotnet_root) {
 	String pipe;
 	List<String> args;
@@ -164,7 +165,9 @@ bool try_get_dotnet_root_from_command_line(String &r_dotnet_root) {
 #endif
 
 String find_hostfxr() {
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
+	// Use system hostfxr discovery for editor builds and libgodot shared library builds.
+	// For libgodot, this allows using the host application's .NET runtime.
 	String dotnet_root;
 	String fxr_path;
 	if (godotsharp::hostfxr_resolver::try_get_path(dotnet_root, fxr_path)) {
@@ -361,28 +364,38 @@ bool load_coreclr(void *&r_coreclr_dll_handle) {
 }
 #endif
 
-#ifdef TOOLS_ENABLED
-load_assembly_and_get_function_pointer_fn initialize_hostfxr_for_config(const char_t *p_config_path) {
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
+std::pair<load_assembly_fn, get_function_pointer_fn> initialize_hostfxr_for_config(const char_t *p_config_path) {
 	hostfxr_handle cxt = nullptr;
 	int rc = hostfxr_initialize_for_runtime_config(p_config_path, nullptr, &cxt);
-	if (rc != 0 || cxt == nullptr) {
+	if (!STATUS_CODE_SUCCEEDED(rc) || cxt == nullptr) {
 		hostfxr_close(cxt);
-		ERR_FAIL_V_MSG(nullptr, "hostfxr_initialize_for_runtime_config failed with code: " + itos(rc));
+		ERR_FAIL_V_MSG(std::make_pair(nullptr, nullptr), "hostfxr_initialize_for_runtime_config failed with code: " + itos(rc));
 	}
 
-	void *load_assembly_and_get_function_pointer = nullptr;
+	void *load_assembly = nullptr;
 
 	rc = hostfxr_get_runtime_delegate(cxt,
-			hdt_load_assembly_and_get_function_pointer, &load_assembly_and_get_function_pointer);
-	if (rc != 0 || load_assembly_and_get_function_pointer == nullptr) {
-		ERR_FAIL_V_MSG(nullptr, "hostfxr_get_runtime_delegate failed with code: " + itos(rc));
+			hdt_load_assembly, &load_assembly);
+	if (rc != 0 || load_assembly == nullptr) {
+		ERR_FAIL_V_MSG(std::make_pair(nullptr, nullptr), "hostfxr_get_runtime_delegate for hdt_load_assembly failed with code: " + itos(rc));
+	}
+
+	void *get_function_pointer = nullptr;
+
+	rc = hostfxr_get_runtime_delegate(cxt,
+			hdt_get_function_pointer, &get_function_pointer);
+	if (rc != 0 || get_function_pointer == nullptr) {
+		ERR_FAIL_V_MSG(std::make_pair(nullptr, nullptr), "hostfxr_get_runtime_delegate for hdt_get_function_pointer failed with code: " + itos(rc));
 	}
 
 	hostfxr_close(cxt);
 
-	return (load_assembly_and_get_function_pointer_fn)load_assembly_and_get_function_pointer;
+	return std::make_pair((load_assembly_fn)load_assembly, (get_function_pointer_fn)get_function_pointer);
 }
-#else
+#endif
+
+#if !defined(TOOLS_ENABLED) && !defined(LIBGODOT_HOSTFXR)
 load_assembly_and_get_function_pointer_fn initialize_hostfxr_self_contained(
 		const char_t *p_main_assembly_path) {
 	hostfxr_handle cxt = nullptr;
@@ -422,13 +435,13 @@ load_assembly_and_get_function_pointer_fn initialize_hostfxr_self_contained(
 }
 #endif
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 using godot_plugins_initialize_fn = bool (*)(void *, bool, gdmono::PluginCallbacks *, GDMonoCache::ManagedCallbacks *, const void **, int32_t);
 #else
 using godot_plugins_initialize_fn = bool (*)(void *, GDMonoCache::ManagedCallbacks *, const void **, int32_t);
 #endif
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 godot_plugins_initialize_fn initialize_hostfxr_and_godot_plugins(bool &r_runtime_initialized) {
 	godot_plugins_initialize_fn godot_plugins_initialize = nullptr;
 
@@ -438,30 +451,36 @@ godot_plugins_initialize_fn initialize_hostfxr_and_godot_plugins(bool &r_runtime
 	HostFxrCharString config_path = str_to_hostfxr(
 			GodotSharpDirs::get_api_assemblies_dir().path_join("GodotPlugins.runtimeconfig.json"));
 
-	load_assembly_and_get_function_pointer_fn load_assembly_and_get_function_pointer =
+	std::pair<load_assembly_fn, get_function_pointer_fn> function_pointers =
 			initialize_hostfxr_for_config(get_data(config_path));
 
-	if (load_assembly_and_get_function_pointer == nullptr) {
-		// Show a message box to the user to make the problem explicit (and explain a potential crash).
-		OS::get_singleton()->alert(TTR("Unable to load .NET runtime, no compatible version was found.\nAttempting to create/edit a project will lead to a crash.\n\nPlease install the .NET SDK 8.0 or later from https://get.dot.net and restart Godot."), TTR("Failed to load .NET runtime"));
-		ERR_FAIL_V_MSG(nullptr, ".NET: Failed to load compatible .NET runtime");
+	if (function_pointers.first == nullptr || function_pointers.second == nullptr) {
+		ERR_FAIL_V_MSG(nullptr, ".NET: Unable to load .NET runtime, no compatible version was found. Please install the .NET SDK 8.0 or later from https://get.dot.net and restart.");
 	}
 
 	r_runtime_initialized = true;
 
 	print_verbose(".NET: hostfxr initialized");
 
-	int rc = load_assembly_and_get_function_pointer(get_data(godot_plugins_path),
+	int rc = function_pointers.first(get_data(godot_plugins_path),
+			nullptr,
+			nullptr);
+	ERR_FAIL_COND_V_MSG(rc != 0, nullptr, ".NET: Failed to load GodotPlugins assembly");
+
+	rc = function_pointers.second(
 			HOSTFXR_STR("GodotPlugins.Main, GodotPlugins"),
 			HOSTFXR_STR("InitializeFromEngine"),
 			UNMANAGEDCALLERSONLY_METHOD,
+			nullptr,
 			nullptr,
 			(void **)&godot_plugins_initialize);
 	ERR_FAIL_COND_V_MSG(rc != 0, nullptr, ".NET: Failed to get GodotPlugins initialization function pointer");
 
 	return godot_plugins_initialize;
 }
-#else
+#endif
+
+#if !defined(TOOLS_ENABLED) && !defined(LIBGODOT_HOSTFXR)
 godot_plugins_initialize_fn initialize_hostfxr_and_godot_plugins(bool &r_runtime_initialized) {
 	godot_plugins_initialize_fn godot_plugins_initialize = nullptr;
 
@@ -488,7 +507,9 @@ godot_plugins_initialize_fn initialize_hostfxr_and_godot_plugins(bool &r_runtime
 
 	return godot_plugins_initialize;
 }
+#endif
 
+#ifndef TOOLS_ENABLED
 godot_plugins_initialize_fn try_load_native_aot_library(void *&r_aot_dll_handle) {
 	String assembly_name = Path::get_csharp_project_name();
 
@@ -611,8 +632,8 @@ godot_plugins_initialize_fn initialize_coreclr_and_godot_plugins(bool &r_runtime
 } // namespace
 
 bool GDMono::should_initialize() {
-#ifdef TOOLS_ENABLED
-	// The editor always needs to initialize the .NET module for now.
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
+	// Editor builds and libgodot shared library builds always need to initialize the .NET module.
 	return true;
 #else
 	return OS::get_singleton()->has_feature("dotnet");
@@ -646,8 +667,7 @@ void GDMono::initialize() {
 #if !defined(APPLE_EMBEDDED_ENABLED)
 	// Check that the .NET assemblies directory exists before trying to use it.
 	if (!DirAccess::exists(GodotSharpDirs::get_api_assemblies_dir())) {
-		OS::get_singleton()->alert(vformat(RTR("Unable to find the .NET assemblies directory.\nMake sure the '%s' directory exists and contains the .NET assemblies."), GodotSharpDirs::get_api_assemblies_dir()), RTR(".NET assemblies not found"));
-		ERR_FAIL_MSG(".NET: Assemblies not found");
+		ERR_FAIL_MSG(vformat(".NET: Unable to find the .NET assemblies directory '%s'. Make sure it exists and contains the .NET assemblies.", GodotSharpDirs::get_api_assemblies_dir()));
 	}
 #endif
 
@@ -655,7 +675,7 @@ void GDMono::initialize() {
 		godot_plugins_initialize = initialize_hostfxr_and_godot_plugins(runtime_initialized);
 		ERR_FAIL_NULL(godot_plugins_initialize);
 	} else {
-#if !defined(TOOLS_ENABLED)
+#if !defined(TOOLS_ENABLED) && !defined(LIBGODOT_HOSTFXR)
 		if (load_coreclr(coreclr_dll_handle)) {
 			godot_plugins_initialize = initialize_coreclr_and_godot_plugins(runtime_initialized);
 		} else {
@@ -671,9 +691,7 @@ void GDMono::initialize() {
 		}
 #else
 
-		// Show a message box to the user to make the problem explicit (and explain a potential crash).
-		OS::get_singleton()->alert(TTR("Unable to load .NET runtime, specifically hostfxr.\nAttempting to create/edit a project will lead to a crash.\n\nPlease install the .NET SDK 8.0 or later from https://get.dot.net and restart Godot."), TTR("Failed to load .NET runtime"));
-		ERR_FAIL_MSG(".NET: Failed to load hostfxr");
+		ERR_FAIL_MSG(".NET: Unable to load .NET runtime (hostfxr). Please install the .NET SDK 8.0 or later from https://get.dot.net and restart.");
 #endif
 	}
 
@@ -689,7 +707,7 @@ void GDMono::initialize() {
 	godot_dll_handle = dlopen(nullptr, RTLD_NOW);
 #endif
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 	gdmono::PluginCallbacks plugin_callbacks_res;
 	bool init_ok = godot_plugins_initialize(godot_dll_handle,
 			Engine::get_singleton()->is_editor_hint(),
@@ -710,14 +728,14 @@ void GDMono::initialize() {
 
 	_on_core_api_assembly_loaded();
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 	_try_load_project_assembly();
 #endif
 
 	initialized = true;
 }
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 void GDMono::_try_load_project_assembly() {
 	if (Engine::get_singleton()->is_project_manager_hint()) {
 		return;
@@ -761,7 +779,7 @@ uint64_t GDMono::get_api_editor_hash() {
 #endif // TOOLS_ENABLED
 #endif // DEBUG_ENABLED
 
-#ifdef TOOLS_ENABLED
+#if defined(TOOLS_ENABLED) || defined(LIBGODOT_HOSTFXR)
 bool GDMono::_load_project_assembly() {
 	String assembly_name = Path::get_csharp_project_name();
 

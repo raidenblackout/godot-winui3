@@ -41,8 +41,32 @@ static GodotInstance *instance = nullptr;
 GDExtensionObjectPtr libgodot_create_godot_instance(int p_argc, char *p_argv[], GDExtensionInitializationFunction p_init_func) {
 	ERR_FAIL_COND_V_MSG(instance != nullptr, nullptr, "Only one Godot Instance may be created.");
 
+	// Check argv for headless flags before creating the OS instance,
+	// mirroring the logic in godot_main_macos.mm. OS_MacOS_NSApp
+	// creates NSApplication which requires the main thread; the
+	// headless variant avoids AppKit entirely.
+	bool is_headless = false;
+	for (int i = 1; i < p_argc; i++) {
+		for (size_t j = 0; j < std::size(OS_MacOS::headless_args); j++) {
+			if (strcmp(OS_MacOS::headless_args[j], p_argv[i]) == 0) {
+				is_headless = true;
+				break;
+			}
+		}
+		if (i < p_argc - 1 && strcmp("--display-driver", p_argv[i]) == 0 && strcmp("headless", p_argv[i + 1]) == 0) {
+			is_headless = true;
+		}
+		if (is_headless) {
+			break;
+		}
+	}
+
 	uint32_t remaining_args = p_argc - 1;
-	os = new OS_MacOS_NSApp(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr);
+	if (is_headless) {
+		os = new OS_MacOS_Headless(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr);
+	} else {
+		os = new OS_MacOS_NSApp(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr);
+	}
 
 	@autoreleasepool {
 		Error err = Main::setup(p_argv[0], remaining_args, remaining_args > 0 ? &p_argv[1] : nullptr, false);
