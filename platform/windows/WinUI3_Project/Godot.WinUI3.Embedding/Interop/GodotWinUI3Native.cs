@@ -12,31 +12,136 @@ internal static class GodotWinUI3Native
 	// Update if the Godot shared-library output name differs in your build.
 	private const string DLL_NAME = "godot";
 
+	internal enum LibGodotInputEventType : int
+	{
+		MouseButton = 1,
+		MouseMotion = 2,
+		MouseWheel = 3,
+		Key = 4,
+		ScreenTouch = 5,
+		ScreenDrag = 6,
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotMouseButtonEvent
+	{
+		public int Button;
+		public int Pressed;
+		public float X;
+		public float Y;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotMouseMotionEvent
+	{
+		public float X;
+		public float Y;
+		public float RelativeX;
+		public float RelativeY;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotMouseWheelEvent
+	{
+		public float X;
+		public float Y;
+		public float DeltaX;
+		public float DeltaY;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotKeyEvent
+	{
+		public int Keycode;
+		public int Pressed;
+		public int Echo;
+		public uint Unicode;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotScreenTouchEvent
+	{
+		public int Index;
+		public int Pressed;
+		public int Canceled;
+		public int DoubleTap;
+		public float X;
+		public float Y;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotScreenDragEvent
+	{
+		public int Index;
+		public float X;
+		public float Y;
+		public float RelativeX;
+		public float RelativeY;
+		public float VelocityX;
+		public float VelocityY;
+		public float Pressure;
+	}
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal struct LibGodotInputEventData
+	{
+		[FieldOffset(0)] public LibGodotMouseButtonEvent MouseButton;
+		[FieldOffset(0)] public LibGodotMouseMotionEvent MouseMotion;
+		[FieldOffset(0)] public LibGodotMouseWheelEvent MouseWheel;
+		[FieldOffset(0)] public LibGodotKeyEvent Key;
+		[FieldOffset(0)] public LibGodotScreenTouchEvent ScreenTouch;
+		[FieldOffset(0)] public LibGodotScreenDragEvent ScreenDrag;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct LibGodotInputEvent
+	{
+		public uint Size;
+		public int Type;
+		public int WindowId;
+		public uint Modifiers;
+		public LibGodotInputEventData Data;
+
+		public static LibGodotInputEvent Create(LibGodotInputEventType type, int windowId)
+		{
+			return new LibGodotInputEvent
+			{
+				Size = (uint)Marshal.SizeOf<LibGodotInputEvent>(),
+				Type = (int)type,
+				WindowId = windowId,
+			};
+		}
+	}
+
 	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 	internal delegate void GodotLogDelegate(IntPtr message, int level);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_log_callback(GodotLogDelegate? callback);
+	internal static extern void libgodot_set_log_callback(GodotLogDelegate? callback);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_embedded_parent_hwnd(IntPtr hwnd);
+	internal static extern void libgodot_set_embedded_parent_window(IntPtr window);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern int godot_winui3_engine_setup(int argc, IntPtr argv);
+	internal static extern int libgodot_engine_setup(int argc, IntPtr argv);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern int godot_winui3_engine_start();
+	internal static extern int libgodot_engine_start();
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern int godot_winui3_engine_iteration();
+	internal static extern int libgodot_engine_iteration();
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_engine_shutdown();
+	internal static extern void libgodot_engine_shutdown();
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_swap_chain_panel(
-		int windowId,
-		IntPtr panelNative);
+	internal static extern void libgodot_set_native_window(IntPtr nativeWindow);
+
+	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+	internal static extern void libgodot_attach_surface(int windowId, IntPtr nativeSurface);
+
+	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
+	internal static extern void libgodot_detach_surface(int windowId);
 
 	// p_ctx is engine-owned and only valid for the duration of the call.
 	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -47,54 +152,25 @@ internal static class GodotWinUI3Native
 	internal delegate void GodotUiDispatchDelegate(IntPtr workFuncPtr, IntPtr ctx);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_ui_dispatcher(GodotUiDispatchDelegate? dispatch);
+	internal static extern void libgodot_set_ui_dispatcher(GodotUiDispatchDelegate? dispatch);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_notify_panel_resize(
+	internal static extern void libgodot_surface_set_size(
 		int windowId,
 		int width,
 		int height);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_composition_scale(
+	internal static extern void libgodot_surface_set_scale(
 		int windowId,
 		float scaleX,
 		float scaleY);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_inject_mouse_button(
-		int windowId,
-		int button,
-		int pressed,
-		float x,
-		float y);
+	internal static extern int libgodot_inject_input_event(ref LibGodotInputEvent inputEvent);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_inject_mouse_motion(
-		int windowId,
-		float x,
-		float y,
-		float relX,
-		float relY);
-
-	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_inject_key(
-		int windowId,
-		int keycode,
-		int pressed,
-		int echo,
-		uint character);
-
-	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_inject_mouse_wheel(
-		int windowId,
-		float x,
-		float y,
-		float deltaX,
-		float deltaY);
-
-	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_input_mode(int mode);
+	internal static extern void libgodot_set_input_mode(int mode);
 
 	// Host <-> Engine messaging.
 
@@ -102,14 +178,14 @@ internal static class GodotWinUI3Native
 	internal delegate void GodotHostMsgDelegate(IntPtr methodUtf8, IntPtr argsJsonUtf8);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_host_message_callback(GodotHostMsgDelegate? callback);
+	internal static extern void libgodot_set_host_message_callback(GodotHostMsgDelegate? callback);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_set_call_return(IntPtr jsonUtf8);
+	internal static extern void libgodot_set_call_return(IntPtr jsonUtf8);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern int godot_winui3_call_engine(IntPtr methodUtf8, IntPtr argsJsonUtf8, out IntPtr retJsonUtf8);
+	internal static extern int libgodot_call_engine(IntPtr methodUtf8, IntPtr argsJsonUtf8, out IntPtr retJsonUtf8);
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
-	internal static extern void godot_winui3_free_string(IntPtr str);
+	internal static extern void libgodot_free_string(IntPtr str);
 }

@@ -218,7 +218,7 @@ SPSC + thread_local sharding is a clean default; benchmark before optimizing.
   the same thread as the panel — i.e., U. The actual *rendering* into the swap
   chain (the engine's render loop) does not require U; D3D12 swap chains can
   Present from any thread that holds the command queue.
-- Concrete plan: keep `SetSwapChainPanel` on U, but move everything past
+- Concrete plan: keep `AttachSurface()` on U, but move everything past
   `EngineStart` onto E. Validate that no D3D12 calls from E touch
   `ISwapChainPanelNative` itself (only the underlying `IDXGISwapChain`).
 
@@ -244,7 +244,7 @@ SPSC + thread_local sharding is a clean default; benchmark before optimizing.
 
 ### What remains
 
-- `godot_winui3_engine_setup/start/iteration/shutdown` C ABI — wrapped by the
+- `libgodot_engine_setup/start/iteration/shutdown` C ABI — wrapped by the
   new `EmbeddedEngine` class on the C# side, untouched on the C++ side.
 - Input injection helpers — refactored to enqueue, but same C ABI.
 - Log callback — unchanged.

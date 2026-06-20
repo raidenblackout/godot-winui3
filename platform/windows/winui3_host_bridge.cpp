@@ -179,7 +179,7 @@ void register_winui3_host_bridge() {
 	GDREGISTER_ABSTRACT_CLASS(WinUI3HostBridge);
 	bridge_instance = memnew(WinUI3HostBridge);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("WinUI3Host", bridge_instance));
-	// Apply any callback stashed by godot_winui3_set_host_message_callback()
+	// Apply any callback stashed by libgodot_set_host_message_callback()
 	// before this singleton existed.
 	godot_winui3_apply_pending_host_callback(bridge_instance);
 }

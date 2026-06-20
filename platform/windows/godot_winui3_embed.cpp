@@ -32,16 +32,18 @@
 
 #include "godot_winui3_embed.h"
 
+#include "display_server_windows.h"
+#include "winui3_host_bridge.h"
+
 #include "core/error/error_macros.h"
 #include "core/extension/godot_instance.h"
 #include "core/extension/libgodot.h"
+#include "core/input/input.h"
 #include "core/os/memory.h"
 #include "core/string/print_string.h"
 #include "core/string/ustring.h"
-#include "display_server_windows.h"
 #include "servers/display/display_server.h"
 #include "servers/display/display_server_enums.h"
-#include "winui3_host_bridge.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -59,7 +61,7 @@ static GodotInstance *g_winui3_instance = nullptr;
 // Log / error callback
 // ---------------------------------------------------------------------------
 
-static godot_winui3_log_func s_log_callback = nullptr;
+static libgodot_log_func s_log_callback = nullptr;
 static PrintHandlerList s_print_handler;
 static ErrorHandlerList s_error_handler;
 
@@ -92,7 +94,7 @@ static void _winui3_error_handler(void *, const char *p_func, const char *p_file
 	s_log_callback(cs.get_data(), level);
 }
 
-void godot_winui3_set_log_callback(godot_winui3_log_func p_callback) {
+void libgodot_set_log_callback(libgodot_log_func p_callback) {
 	if (s_log_callback) {
 		remove_print_handler(&s_print_handler);
 		remove_error_handler(&s_error_handler);
@@ -127,12 +129,12 @@ static GDExtensionBool _winui3_stub_extension_init(
 	return 1;
 }
 
-void godot_winui3_set_embedded_parent_hwnd(void *p_hwnd) {
+void libgodot_set_embedded_parent_window(void *p_hwnd) {
 	DisplayServerWindows::set_embedded_parent_hwnd(p_hwnd);
 }
 
-int32_t godot_winui3_engine_setup(int32_t p_argc, char **p_argv) {
-	ERR_FAIL_COND_V_MSG(g_winui3_instance != nullptr, 0, "Godot engine is already initialised.");
+int32_t libgodot_engine_setup(int32_t p_argc, char **p_argv) {
+	ERR_FAIL_COND_V_MSG(g_winui3_instance != nullptr, 0, "Godot engine is already initialized.");
 	ERR_FAIL_COND_V(p_argc < 1, 0);
 	ERR_FAIL_NULL_V(p_argv, 0);
 
@@ -145,7 +147,7 @@ int32_t godot_winui3_engine_setup(int32_t p_argc, char **p_argv) {
 }
 
 // Deferred resize state — populated before DisplayServer exists,
-// replayed by godot_winui3_engine_start() after Main::setup2() creates it.
+// replayed by libgodot_engine_start() after Main::setup2() creates it.
 // (The swap chain panel uses a different mechanism: DisplayServerWindows::_pending_swap_chain_panel.)
 struct DeferredResizeState {
 	int32_t window_id = 0;
@@ -155,8 +157,8 @@ struct DeferredResizeState {
 };
 static DeferredResizeState s_deferred_resize;
 
-int32_t godot_winui3_engine_start() {
-	ERR_FAIL_NULL_V_MSG(g_winui3_instance, 0, "Call godot_winui3_engine_setup() first.");
+int32_t libgodot_engine_start() {
+	ERR_FAIL_NULL_V_MSG(g_winui3_instance, 0, "Call libgodot_engine_setup() first.");
 	bool ok = g_winui3_instance->start();
 	if (ok) {
 		// Main::setup2() (called inside start()) creates the DisplayServer.
@@ -174,13 +176,13 @@ int32_t godot_winui3_engine_start() {
 	return ok ? 1 : 0;
 }
 
-int32_t godot_winui3_engine_iteration() {
-	ERR_FAIL_NULL_V_MSG(g_winui3_instance, 1, "Engine not initialised — caller should stop iterating.");
+int32_t libgodot_engine_iteration() {
+	ERR_FAIL_NULL_V_MSG(g_winui3_instance, 1, "Engine not initialized — caller should stop iterating.");
 	// GodotInstance::iteration() returns true when the main loop wants to quit.
 	return g_winui3_instance->iteration() ? 1 : 0;
 }
 
-void godot_winui3_engine_shutdown() {
+void libgodot_engine_shutdown() {
 	if (g_winui3_instance == nullptr) {
 		return;
 	}
@@ -194,29 +196,38 @@ void godot_winui3_engine_shutdown() {
 // Panel / swap chain helpers
 // ---------------------------------------------------------------------------
 
-void godot_winui3_set_swap_chain_panel(int32_t p_window_id, void *p_panel_native) {
+void libgodot_set_native_window(void *p_native_window) {
+	libgodot_attach_surface(DisplayServerEnums::MAIN_WINDOW_ID, p_native_window);
+}
+
+void libgodot_attach_surface(int32_t p_window_id, void *p_native_surface) {
 	DisplayServerWindows *ds = Object::cast_to<DisplayServerWindows>(DisplayServer::get_singleton());
 	if (ds == nullptr) {
 		// Store on DisplayServerWindows so it is applied during _create_rendering_context_window,
 		// avoiding a destroy+create cycle that would leave a dangling Surface pointer in the
 		// RenderingDevice's SwapChain. Only the main window (id 0) is supported at pre-init time.
+		ERR_FAIL_COND_MSG(p_window_id != DisplayServerEnums::MAIN_WINDOW_ID, "Only the main window can receive a native surface before DisplayServer initialization.");
 		DisplayServerWindows::set_pending_swap_chain_panel(
-				static_cast<ISwapChainPanelNative *>(p_panel_native));
+				static_cast<ISwapChainPanelNative *>(p_native_surface));
 		return;
 	}
 	ds->window_set_swap_chain_panel(
 			DisplayServerEnums::WindowID(p_window_id),
-			p_panel_native);
+			p_native_surface);
 }
 
-void godot_winui3_set_ui_dispatcher(godot_winui3_ui_dispatch_func p_dispatch) {
+void libgodot_detach_surface(int32_t p_window_id) {
+	libgodot_attach_surface(p_window_id, nullptr);
+}
+
+void libgodot_set_ui_dispatcher(libgodot_ui_dispatch_func p_dispatch) {
 	// Signatures are identical; the cast bridges the C ABI typedef and the
 	// DisplayServer-side typedef without coupling the two headers.
 	DisplayServerWindows::set_ui_dispatcher(
 			reinterpret_cast<DisplayServerWindows::WinUI3UIDispatchFunc>(p_dispatch));
 }
 
-void godot_winui3_notify_panel_resize(int32_t p_window_id, int32_t p_width, int32_t p_height) {
+void libgodot_surface_set_size(int32_t p_window_id, int32_t p_width, int32_t p_height) {
 	DisplayServerWindows *ds = Object::cast_to<DisplayServerWindows>(DisplayServer::get_singleton());
 	if (ds == nullptr) {
 		s_deferred_resize = { p_window_id, p_width, p_height, true };
@@ -228,7 +239,7 @@ void godot_winui3_notify_panel_resize(int32_t p_window_id, int32_t p_width, int3
 			p_height);
 }
 
-void godot_winui3_set_composition_scale(int32_t p_window_id, float p_scale_x, float p_scale_y) {
+void libgodot_surface_set_scale(int32_t p_window_id, float p_scale_x, float p_scale_y) {
 	DisplayServerWindows *ds = Object::cast_to<DisplayServerWindows>(DisplayServer::get_singleton());
 	if (ds == nullptr) {
 		// Stash on DisplayServerWindows so it is applied to the WindowData during DisplayServer
@@ -251,40 +262,107 @@ void godot_winui3_set_composition_scale(int32_t p_window_id, float p_scale_x, fl
 // consistently in a single place.
 // ---------------------------------------------------------------------------
 
-void godot_winui3_inject_mouse_button(int32_t p_window_id, int32_t p_button, int32_t p_pressed, float p_x, float p_y) {
-	DisplayServerWindows::_winui3_inject_mouse_button(
-			DisplayServerEnums::WindowID(p_window_id),
-			MouseButton(p_button),
-			p_pressed != 0,
-			p_x,
-			p_y);
+static void _libgodot_apply_modifiers(InputEventWithModifiers *p_event, uint32_t p_modifiers) {
+	p_event->set_shift_pressed((p_modifiers & LIBGODOT_INPUT_MODIFIER_SHIFT) != 0);
+	p_event->set_ctrl_pressed((p_modifiers & LIBGODOT_INPUT_MODIFIER_CTRL) != 0);
+	p_event->set_alt_pressed((p_modifiers & LIBGODOT_INPUT_MODIFIER_ALT) != 0);
+	p_event->set_meta_pressed((p_modifiers & LIBGODOT_INPUT_MODIFIER_META) != 0);
 }
 
-void godot_winui3_inject_mouse_motion(int32_t p_window_id, float p_x, float p_y, float p_rel_x, float p_rel_y) {
-	DisplayServerWindows::_winui3_inject_mouse_motion(
-			DisplayServerEnums::WindowID(p_window_id),
-			p_x,
-			p_y,
-			p_rel_x,
-			p_rel_y);
+int32_t libgodot_inject_input_event(const LibGodotInputEvent *p_event) {
+	ERR_FAIL_NULL_V(p_event, 0);
+	ERR_FAIL_COND_V_MSG(p_event->size < sizeof(LibGodotInputEvent), 0, "LibGodotInputEvent::size is smaller than the ABI struct.");
+
+	DisplayServerEnums::WindowID window_id = DisplayServerEnums::WindowID(p_event->window_id);
+
+	switch (p_event->type) {
+		case LIBGODOT_INPUT_EVENT_MOUSE_BUTTON: {
+			const LibGodotMouseButtonEvent &src = p_event->data.mouse_button;
+			Ref<InputEventMouseButton> mb;
+			mb.instantiate();
+			mb->set_window_id(window_id);
+			mb->set_button_index(MouseButton(src.button));
+			mb->set_pressed(src.pressed != 0);
+			mb->set_position(Vector2(src.x, src.y));
+			mb->set_global_position(Vector2(src.x, src.y));
+			mb->set_button_mask(Input::get_singleton()->get_mouse_button_mask());
+			_libgodot_apply_modifiers(*mb, p_event->modifiers);
+			Input::get_singleton()->parse_input_event(mb);
+			return 1;
+		}
+		case LIBGODOT_INPUT_EVENT_MOUSE_MOTION: {
+			const LibGodotMouseMotionEvent &src = p_event->data.mouse_motion;
+			Ref<InputEventMouseMotion> mm;
+			mm.instantiate();
+			mm->set_window_id(window_id);
+			mm->set_position(Vector2(src.x, src.y));
+			mm->set_global_position(Vector2(src.x, src.y));
+			mm->set_relative(Vector2(src.relative_x, src.relative_y));
+			mm->set_relative_screen_position(Vector2(src.relative_x, src.relative_y));
+			mm->set_velocity(Input::get_singleton()->get_last_mouse_velocity());
+			mm->set_screen_velocity(mm->get_velocity());
+			mm->set_button_mask(Input::get_singleton()->get_mouse_button_mask());
+			_libgodot_apply_modifiers(*mm, p_event->modifiers);
+			Input::get_singleton()->parse_input_event(mm);
+			Input::get_singleton()->set_mouse_position(Point2i(src.x, src.y));
+			return 1;
+		}
+		case LIBGODOT_INPUT_EVENT_MOUSE_WHEEL: {
+			const LibGodotMouseWheelEvent &src = p_event->data.mouse_wheel;
+			DisplayServerWindows::_winui3_inject_mouse_wheel(window_id, src.x, src.y, src.delta_x, src.delta_y);
+			return 1;
+		}
+		case LIBGODOT_INPUT_EVENT_KEY: {
+			const LibGodotKeyEvent &src = p_event->data.key;
+			Ref<InputEventKey> k;
+			k.instantiate();
+			k->set_window_id(window_id);
+			k->set_keycode(Key(src.keycode));
+			k->set_physical_keycode(Key(src.keycode));
+			k->set_key_label(Key(src.keycode));
+			k->set_pressed(src.pressed != 0);
+			k->set_echo(src.echo != 0);
+			_libgodot_apply_modifiers(*k, p_event->modifiers);
+			if (src.unicode != 0) {
+				k->set_unicode(char32_t(src.unicode));
+			}
+			Input::get_singleton()->parse_input_event(k);
+			return 1;
+		}
+		case LIBGODOT_INPUT_EVENT_SCREEN_TOUCH: {
+			const LibGodotScreenTouchEvent &src = p_event->data.screen_touch;
+			Ref<InputEventScreenTouch> st;
+			st.instantiate();
+			st->set_window_id(window_id);
+			st->set_index(src.index);
+			st->set_position(Vector2(src.x, src.y));
+			st->set_pressed(src.pressed != 0);
+			st->set_canceled(src.canceled != 0);
+			st->set_double_tap(src.double_tap != 0);
+			Input::get_singleton()->parse_input_event(st);
+			return 1;
+		}
+		case LIBGODOT_INPUT_EVENT_SCREEN_DRAG: {
+			const LibGodotScreenDragEvent &src = p_event->data.screen_drag;
+			Ref<InputEventScreenDrag> sd;
+			sd.instantiate();
+			sd->set_window_id(window_id);
+			sd->set_index(src.index);
+			sd->set_position(Vector2(src.x, src.y));
+			sd->set_relative(Vector2(src.relative_x, src.relative_y));
+			sd->set_relative_screen_position(Vector2(src.relative_x, src.relative_y));
+			sd->set_velocity(Vector2(src.velocity_x, src.velocity_y));
+			sd->set_screen_velocity(Vector2(src.velocity_x, src.velocity_y));
+			sd->set_pressure(src.pressure);
+			Input::get_singleton()->parse_input_event(sd);
+			return 1;
+		}
+		default:
+			ERR_FAIL_V_MSG(0, "Unsupported LibGodotInputEvent type.");
+	}
 }
 
-void godot_winui3_inject_key(int32_t p_window_id, int32_t p_keycode, int32_t p_pressed, int32_t p_echo, uint32_t p_char) {
-	DisplayServerWindows::_winui3_inject_key(
-			DisplayServerEnums::WindowID(p_window_id),
-			Key(p_keycode),
-			p_pressed != 0,
-			p_echo != 0,
-			char32_t(p_char));
-}
-
-void godot_winui3_inject_mouse_wheel(int32_t p_window_id, float p_x, float p_y, float p_delta_x, float p_delta_y) {
-	DisplayServerWindows::_winui3_inject_mouse_wheel(
-			DisplayServerEnums::WindowID(p_window_id),
-			p_x, p_y, p_delta_x, p_delta_y);
-}
-
-void godot_winui3_set_input_mode(int32_t p_mode) {
+void libgodot_set_input_mode(int32_t p_mode) {
 	DisplayServerWindows::set_winui3_input_mode(p_mode);
 }
 
@@ -297,11 +375,11 @@ void godot_winui3_set_input_mode(int32_t p_mode) {
 // ---------------------------------------------------------------------------
 
 // Stash for a host callback registered before the bridge singleton exists.
-// The host is allowed to call godot_winui3_set_host_message_callback() at any
-// time after godot_winui3_set_log_callback() but before EngineSetup completes.
+// The host is allowed to call libgodot_set_host_message_callback() at any
+// time after libgodot_set_log_callback() but before EngineSetup completes.
 // register_winui3_host_bridge() calls godot_winui3_apply_pending_host_callback()
 // immediately after constructing the bridge so the callback is never dropped.
-static godot_winui3_host_msg_func s_pending_host_callback = nullptr;
+static libgodot_host_msg_func s_pending_host_callback = nullptr;
 
 // Called by register_winui3_host_bridge() (winui3_host_bridge.cpp) once the
 // bridge singleton is live. Applies any callback stashed before setup finished.
@@ -312,7 +390,7 @@ void godot_winui3_apply_pending_host_callback(WinUI3HostBridge *p_bridge) {
 	}
 }
 
-void godot_winui3_set_host_message_callback(godot_winui3_host_msg_func p_callback) {
+void libgodot_set_host_message_callback(libgodot_host_msg_func p_callback) {
 	WinUI3HostBridge *bridge = WinUI3HostBridge::get_singleton();
 	if (bridge == nullptr) {
 		// Bridge not created yet — stash and apply in register_winui3_host_bridge().
@@ -323,7 +401,7 @@ void godot_winui3_set_host_message_callback(godot_winui3_host_msg_func p_callbac
 	bridge->set_host_callback(reinterpret_cast<WinUI3HostBridge::HostMessageFunc>(p_callback));
 }
 
-void godot_winui3_set_call_return(const char *p_json) {
+void libgodot_set_call_return(const char *p_json) {
 	WinUI3HostBridge *bridge = WinUI3HostBridge::get_singleton();
 	if (bridge == nullptr) {
 		return;
@@ -335,7 +413,7 @@ void godot_winui3_set_call_return(const char *p_json) {
 	bridge->set_pending_return(s);
 }
 
-int32_t godot_winui3_call_engine(const char *p_method, const char *p_args_json, char **r_ret_json) {
+int32_t libgodot_call_engine(const char *p_method, const char *p_args_json, char **r_ret_json) {
 	if (r_ret_json != nullptr) {
 		*r_ret_json = nullptr;
 	}
@@ -359,7 +437,7 @@ int32_t godot_winui3_call_engine(const char *p_method, const char *p_args_json, 
 	if (!ret.is_empty() && r_ret_json != nullptr) {
 		CharString utf8 = ret.utf8();
 		size_t len = static_cast<size_t>(utf8.length()) + 1;
-		// Use the engine's allocator so godot_winui3_free_string works
+		// Use the engine's allocator so libgodot_free_string works
 		// regardless of which CRT the host links against.
 		char *buf = static_cast<char *>(memalloc(len));
 		ERR_FAIL_NULL_V(buf, 0);
@@ -369,7 +447,7 @@ int32_t godot_winui3_call_engine(const char *p_method, const char *p_args_json, 
 	return 1;
 }
 
-void godot_winui3_free_string(char *p_str) {
+void libgodot_free_string(char *p_str) {
 	if (p_str != nullptr) {
 		memfree(p_str);
 	}

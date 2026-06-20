@@ -1,7 +1,7 @@
 // EngineMessageSender.cs
 // Sends messages from the WinUI3 host into the embedded Godot engine.
 // Calls are queued onto the engine thread via GodotEngineHost.Post so the
-// underlying godot_winui3_call_engine() invocation always happens on the
+// underlying libgodot_call_engine() invocation always happens on the
 // engine iteration thread, matching the C ABI's threading contract.
 
 namespace Godot.WinUI3.Embedding.Communication;

@@ -4,7 +4,7 @@ A bidirectional, JSON-on-the-wire message bus between an embedded Godot
 engine and a WinUI3 host process. Used for higher-level commands like
 `set_device_info`, `get_device_info`, or any custom RPC — **not** for input
 events (mouse / keyboard / wheel) which have their own dedicated path via
-`godot_winui3_inject_*`.
+`libgodot_inject_input_event`.
 
 This sits alongside the engine-lifecycle and input APIs documented in
 [godot_winui3_embed.h](godot_winui3_embed.h) and [godot_winui3_embed.cs](godot_winui3_embed.cs).
@@ -33,7 +33,7 @@ C ABI that talks to that singleton.
 │  WinUI3 host process (.exe, links the Godot DLL)                 │
 │                                                                  │
 │   ┌──────────────────┐         GodotWinUI3Embed.CallEngine(…)    │
-│   │ MainWindow.cs    │ ─────▶ godot_winui3_call_engine(…) ─┐     │
+│   │ MainWindow.cs    │ ─────▶ libgodot_call_engine(…) ─┐     │
 │   │ (your code)      │                                     │     │
 │   │                  │ ◀──── HostMessageHandler delegate ──┼─┐   │
 │   └──────────────────┘                                     │ │   │
@@ -64,7 +64,7 @@ Two directions, two patterns:
 - **Engine → Host** — GDScript calls
   `WinUI3Host.send_to_host(method, args)`. The bridge JSON-encodes the args
   and invokes the registered C callback. The host populates the return value
-  from inside the callback via `godot_winui3_set_call_return(json)`.
+  from inside the callback via `libgodot_set_call_return(json)`.
 
 ## Wire format
 
@@ -92,13 +92,13 @@ yourself (e.g. `{"x": 1.0, "y": 2.0}` ↔ `Vector2`) at the boundary.
 ## Lifecycle and ordering
 
 ```
-1. godot_winui3_set_log_callback(...)            ; optional, for capturing setup errors
-2. godot_winui3_set_embedded_parent_hwnd(hwnd)
-3. godot_winui3_engine_setup(argc, argv)         ; ◀── WinUI3Host singleton becomes available here
+1. libgodot_set_log_callback(...)            ; optional, for capturing setup errors
+2. libgodot_set_embedded_parent_window(hwnd)
+3. libgodot_engine_setup(argc, argv)         ; ◀── WinUI3Host singleton becomes available here
 4. GodotWinUI3Embed.SetHostMessageHandler(...)   ; engine→host receiver — register before engine_start
-5. godot_winui3_set_swap_chain_panel(0, panel)
-6. godot_winui3_engine_start()                   ; runs scripts; _ready() registers GDScript handlers
-7. (per frame) godot_winui3_engine_iteration()
+5. libgodot_attach_surface(0, panel)
+6. libgodot_engine_start()                   ; runs scripts; _ready() registers GDScript handlers
+7. (per frame) libgodot_engine_iteration()
 8. (anytime) GodotWinUI3Embed.CallEngine(...)    ; works once step 6 has run
 ```
 
@@ -115,7 +115,7 @@ yourself (e.g. `{"x": 1.0, "y": 2.0}` ↔ `Vector2`) at the boundary.
 
 **The bridge is single-threaded.** All calls in both directions must run on
 the engine iteration thread — the same thread that drives
-`godot_winui3_engine_iteration`. In a typical WinUI3 host that is the UI
+`libgodot_engine_iteration`. In a typical WinUI3 host that is the UI
 thread (driven by a `DispatcherQueueTimer`).
 
 If you receive an event on a worker thread (e.g. a Bluetooth callback) and
@@ -136,7 +136,7 @@ host callbacks are not supported.
 
 ```gdscript
 # Send a message to the host. args is positional — one element per host argument.
-# Returns whatever the host writes back via godot_winui3_set_call_return,
+# Returns whatever the host writes back via libgodot_set_call_return,
 # or null if the host did not set a return value.
 WinUI3Host.send_to_host(method: StringName, args: Array = []) -> Variant
 
@@ -187,13 +187,13 @@ typedef void (*godot_winui3_host_msg_func)(
     const char *p_method,
     const char *p_args_json);
 
-void godot_winui3_set_host_message_callback(godot_winui3_host_msg_func cb);
-void godot_winui3_set_call_return(const char *p_json);
-int32_t godot_winui3_call_engine(
+void libgodot_set_host_message_callback(godot_winui3_host_msg_func cb);
+void libgodot_set_call_return(const char *p_json);
+int32_t libgodot_call_engine(
     const char *p_method,
     const char *p_args_json,
     char **r_ret_json);
-void godot_winui3_free_string(char *p_str);
+void libgodot_free_string(char *p_str);
 ```
 
 Memory ownership:
@@ -201,13 +201,13 @@ Memory ownership:
 - `p_method`, `p_args_json` passed to the callback are owned by the engine
   and only valid for the duration of the call. Copy them if you need to
   defer work.
-- `*r_ret_json` returned by `godot_winui3_call_engine` is allocated by the
-  engine. **Caller must free with `godot_winui3_free_string`.** Pass `NULL`
+- `*r_ret_json` returned by `libgodot_call_engine` is allocated by the
+  engine. **Caller must free with `libgodot_free_string`.** Pass `NULL`
   for that argument if you don't need the return value.
-- The string passed to `godot_winui3_set_call_return` is copied internally;
+- The string passed to `libgodot_set_call_return` is copied internally;
   the caller may free it after the call.
 
-Return value of `godot_winui3_call_engine`:
+Return value of `libgodot_call_engine`:
 - `1` on success — `*r_ret_json` is either `NULL` (no return / no handler)
   or a heap-allocated UTF-8 JSON string.
 - `0` on failure — engine not initialised or singleton not registered.

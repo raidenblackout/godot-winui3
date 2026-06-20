@@ -51,7 +51,7 @@ class WinUI3HostBridge : public Object {
 public:
 	// Engine -> Host callback. Fired when GDScript invokes
 	// WinUI3Host.send_to_host(method, args). The host populates the return
-	// value (if any) by calling godot_winui3_set_call_return() from inside this
+	// value (if any) by calling libgodot_set_call_return() from inside this
 	// callback.
 	typedef void (*HostMessageFunc)(const char *p_method, const char *p_args_json);
 
@@ -60,7 +60,7 @@ private:
 
 	HostMessageFunc host_callback = nullptr;
 
-	// Buffer used by godot_winui3_set_call_return(). Filled during a host
+	// Buffer used by libgodot_set_call_return(). Filled during a host
 	// callback invocation; consumed (and cleared) by send_to_host() after the
 	// callback returns. Single-threaded — host runs on the engine thread.
 	String pending_return_json;

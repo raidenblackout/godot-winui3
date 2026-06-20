@@ -1,7 +1,7 @@
 // GodotEngineHost.cs
 // Runs the embedded Godot engine on a dedicated background thread instead of
 // the WinUI3 UI thread. UI-affine native calls (binding the swap chain to the
-// SwapChainPanel) are marshalled back onto the UI thread via the captured
+// SwapChainPanel) are marshaled back onto the UI thread via the captured
 // SynchronizationContext; everything else (input injection, panel resize,
 // host<->engine calls) is funnelled through a work queue drained at the top
 // of each engine iteration, so callers on the UI thread never touch engine
@@ -97,10 +97,13 @@ public sealed class GodotEngineHost : IDisposable
 	{
 		Post(() =>
 		{
-			GodotWinUI3Embed.SetCompositionScale(0, scaleX, scaleY);
-			GodotWinUI3Embed.NotifyPanelResize(0, (int)widthPx, (int)heightPx);
+			GodotWinUI3Embed.SetSurfaceScale(0, scaleX, scaleY);
+			GodotWinUI3Embed.SetSurfaceSize(0, (int)widthPx, (int)heightPx);
 		});
 	}
+
+	public void DetachSurface()
+		=> Post(() => GodotWinUI3Embed.DetachSurface(0));
 
 	public void InjectMouseButton(GodotMouseButton button, bool pressed, float x, float y)
 		=> Post(() => GodotWinUI3Embed.InjectMouseButton(0, button, pressed, x, y));
@@ -118,7 +121,7 @@ public sealed class GodotEngineHost : IDisposable
 	{
 		OpenLogFile();
 		GodotWinUI3Embed.SetLogCallback(OnGodotLog);
-		GodotWinUI3Embed.SetEmbeddedParentHwnd(hostHwnd);
+		GodotWinUI3Embed.SetEmbeddedParentWindow(hostHwnd);
 		GodotWinUI3Embed.SetUiDispatcher(RunOnUiThread);
 
 		string[] args = { "godot", "--main-pack", ProjectPath, "--rendering-driver", RenderingDriver };
@@ -133,7 +136,7 @@ public sealed class GodotEngineHost : IDisposable
 
 		try
 		{
-			GodotWinUI3Embed.SetSwapChainPanel(0, panelNative);
+			GodotWinUI3Embed.AttachSurface(0, panelNative);
 		}
 		finally
 		{
@@ -142,8 +145,8 @@ public sealed class GodotEngineHost : IDisposable
 			ReleasePanel(panelNative);
 		}
 
-		GodotWinUI3Embed.SetCompositionScale(0, scaleX, scaleY);
-		GodotWinUI3Embed.NotifyPanelResize(0, widthPx, heightPx);
+		GodotWinUI3Embed.SetSurfaceScale(0, scaleX, scaleY);
+		GodotWinUI3Embed.SetSurfaceSize(0, widthPx, heightPx);
 
 		if (!GodotWinUI3Embed.EngineStart())
 		{

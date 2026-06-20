@@ -103,7 +103,7 @@ The WinUI3 host creates its XAML objects (including the SwapChainPanel) before c
 Timeline
 ────────────────────────────────────────────────────────────────────
   Host creates SwapChainPanel in XAML
-  Host calls SetSwapChainPanel()  ← DisplayServer does not exist yet
+  Host calls AttachSurface()  ← DisplayServer does not exist yet
   Host calls EngineSetup()        ← Main::setup() runs, still no DisplayServer
   Host calls EngineStart()        ← Main::setup2() creates DisplayServer
                                      surface is created HERE
@@ -115,7 +115,7 @@ To handle the gap we use a static "pending" slot on `DisplayServerWindows`. `set
 
 ### 4d. Resize
 
-XAML layout is independent of Win32 geometry. When the user resizes the WinUI3 window, XAML reflows and the SwapChainPanel gets a new logical size — but no `WM_SIZE` message is sent to Godot's child HWND, because Win32 does not know the XAML panel's size changed. The host must explicitly call `NotifyPanelResize()` from the XAML `SizeChanged` event handler, which in turn resizes the DXGI swap chain buffers.
+XAML layout is independent of Win32 geometry. When the user resizes the WinUI3 window, XAML reflows and the SwapChainPanel gets a new logical size — but no `WM_SIZE` message is sent to Godot's child HWND, because Win32 does not know the XAML panel's size changed. The host must explicitly call `SetSurfaceSize()` from the XAML `SizeChanged` event handler, which in turn resizes the DXGI swap chain buffers.
 
 ---
 

@@ -189,7 +189,7 @@ private:
 			api_assemblies_dir = api_assemblies_base_dir.path_join(GDMono::get_expected_api_build_config());
 		}
 #else // LIBGODOT_HOSTFXR only (not TOOLS_ENABLED)
-		// Libgodot shared library builds use flat structure - assemblies directly in exe_dir
+	  // Libgodot shared library builds use flat structure - assemblies directly in exe_dir
 		if (api_assemblies_dir.is_empty()) {
 			api_assemblies_dir = exe_dir;
 		}
