@@ -8547,9 +8547,9 @@ static void _winui3_read_mods(bool &r_shift, bool &r_ctrl, bool &r_alt, bool &r_
 	unsigned char ks[256];
 	if (GetKeyboardState((PBYTE)ks)) {
 		r_shift = (ks[VK_LSHIFT] & 0x80) || (ks[VK_RSHIFT] & 0x80);
-		r_ctrl  = (ks[VK_LCONTROL] & 0x80) || (ks[VK_RCONTROL] & 0x80);
-		r_alt   = (ks[VK_LMENU] & 0x80) || (ks[VK_RMENU] & 0x80);
-		r_meta  = (ks[VK_LWIN] & 0x80) || (ks[VK_RWIN] & 0x80);
+		r_ctrl = (ks[VK_LCONTROL] & 0x80) || (ks[VK_RCONTROL] & 0x80);
+		r_alt = (ks[VK_LMENU] & 0x80) || (ks[VK_RMENU] & 0x80);
+		r_meta = (ks[VK_LWIN] & 0x80) || (ks[VK_RWIN] & 0x80);
 	}
 }
 
