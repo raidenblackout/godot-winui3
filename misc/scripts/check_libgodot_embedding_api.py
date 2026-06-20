@@ -21,11 +21,19 @@ def assert_not_contains(text, needle, path):
 
 def main():
     libgodot_h = read("core/extension/libgodot.h")
-    native_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedNative.cs")
-    wrapper_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedEmbed.cs")
-    enums_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedEnums.cs")
+    native_cs = read(
+        "platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedNative.cs"
+    )
+    wrapper_cs = read(
+        "platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedEmbed.cs"
+    )
+    enums_cs = read(
+        "platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Interop/GodotWindowsEmbedEnums.cs"
+    )
     engine_host_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/GodotEngineHost.cs")
-    receiver_cs = read("platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Communication/EngineMessageReceiver.cs")
+    receiver_cs = read(
+        "platform/windows/WindowsEmbed_Project/Godot.WindowsEmbed.Embedding/Communication/EngineMessageReceiver.cs"
+    )
     map_page_cs = read("platform/windows/WindowsEmbed_Project/windows_embed_sample/Views/MapViewPage.xaml.cs")
     platform_scsub = read("platform/windows/SCsub")
     d3d12_scsub = read("drivers/d3d12/SCsub")

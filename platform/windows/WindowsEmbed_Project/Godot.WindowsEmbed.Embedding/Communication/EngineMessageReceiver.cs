@@ -2,7 +2,7 @@
 // Receives messages sent from GDScript via WindowsEmbedHost.send_to_host(method,
 // args) and raises them as events on the thread that constructed this
 // receiver (normally the WindowsEmbed UI thread). The native callback itself fires
-// on the engine thread, so every dispatch is marshalled across.
+// on the engine thread, so every dispatch is marshaled across.
 
 namespace Godot.WindowsEmbed.Embedding.Communication;
 

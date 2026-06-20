@@ -78,7 +78,7 @@ internal static class IndoorMapUtility
 {
 	// Coerces any floor.properties.scale that arrived as a float into an int,
 	// and inserts a default properties block when missing. Mirrors the parsing
-	// behaviour of the GDScript side, which expects an integer scale.
+	// behavior of the GDScript side, which expects an integer scale.
 	public static string CheckInvalidScale(string mapData)
 	{
 		var node = JsonNode.Parse(mapData);
@@ -163,7 +163,7 @@ public sealed class MapViewModel
 	public string GetCapabilityStatus() => ReadAssetJson("capabilityStatus.json", fallback: "[]");
 
 	// Reads an Assets/*.json file and re-serialises through JsonDocument so the
-	// payload is normalised (no BOM, consistent whitespace) and validated as
+	// payload is normalized (no BOM, consistent whitespace) and validated as
 	// well-formed JSON before being sent to the engine.
 	private string ReadAssetJson(string fileName, string fallback)
 	{
