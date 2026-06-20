@@ -195,7 +195,7 @@ The embedding layer exposes a flat C API (`extern "C"`, `__declspec(dllexport)`)
                                        ┌────────────▼─────────────────────────┐
                                        │  DisplayServerWindows                 │
                                        │                                       │
-                                       │  Pre-init statics:                    │
+                                       │  Pre-init state:                      │
                                        │    _embedded_parent_hwnd              │
                                        │    _pending_swap_chain_panel          │
                                        │                                       │

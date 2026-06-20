@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef WINUI3_HOST_BRIDGE_H
-#define WINUI3_HOST_BRIDGE_H
+#pragma once
 
 #ifdef WINUI3_ENABLED
 
@@ -96,5 +95,3 @@ void register_winui3_host_bridge();
 void unregister_winui3_host_bridge();
 
 #endif // WINUI3_ENABLED
-
-#endif // WINUI3_HOST_BRIDGE_H

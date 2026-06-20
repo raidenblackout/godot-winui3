@@ -210,7 +210,7 @@ Memory ownership:
 Return value of `libgodot_call_engine`:
 - `1` on success — `*r_ret_json` is either `NULL` (no return / no handler)
   or a heap-allocated UTF-8 JSON string.
-- `0` on failure — engine not initialised or singleton not registered.
+- `0` on failure — engine not initialized or singleton not registered.
 
 ## Examples
 
@@ -307,7 +307,7 @@ integration.
 
 ## Error handling
 
-| Failure mode | Visible behaviour |
+| Failure mode | Visible behavior |
 |---|---|
 | `send_to_host` called with no host callback registered | Warning printed once per method name; returns `null`. |
 | `CallEngine` called before engine setup | Returns `0` from the C ABI / throws `InvalidOperationException` from C#. |
@@ -318,7 +318,7 @@ integration.
 
 ## Limitations
 
-- **Single-threaded.** No queuing, no cross-thread marshalling. Caller
+- **Single-threaded.** No queuing, no cross-thread marshaling. Caller
   responsibility.
 - **JSON only.** No native pass-through for Godot Variant types beyond what
   JSON expresses (no Vector2/3, NodePath, Resource references, packed
