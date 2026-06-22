@@ -38,6 +38,9 @@ if env.msvc:
 else:
     common_win += ["crash_handler_windows_signal.cpp"]
 
+if "windows_embed" in env.get("supported", []):
+    common_win += ["godot_windows_embed.cpp", "windows_host_bridge.cpp"]
+
 common_win_wrap = [
     "console_wrapper_windows.cpp",
 ]

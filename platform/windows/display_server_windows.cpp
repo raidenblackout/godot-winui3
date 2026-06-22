@@ -68,6 +68,9 @@
 
 #include <dxgi1_6.h>
 #endif
+#ifdef WINDOWS_EMBED_ENABLED
+#include <windows.ui.xaml.media.dxinterop.h>
+#endif
 #if defined(GLES3_ENABLED)
 #include "drivers/gles3/rasterizer_gles3.h"
 #endif
@@ -252,6 +255,12 @@ Vector2i DisplayServerWindows::_get_screen_expand_offset(int p_screen) const {
 }
 
 void DisplayServerWindows::_set_mouse_mode_impl(DisplayServerEnums::MouseMode p_mode) {
+#ifdef WINDOWS_EMBED_ENABLED
+	const bool windows_embed_xaml_input = _windows_embed_uses_xaml_input();
+#else
+	const bool windows_embed_xaml_input = false;
+#endif
+
 	if (p_mode == DisplayServerEnums::MOUSE_MODE_HIDDEN || p_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED || p_mode == DisplayServerEnums::MOUSE_MODE_CONFINED_HIDDEN) {
 		// Hide cursor before moving.
 		if (hCursor == nullptr) {
@@ -279,7 +288,7 @@ void DisplayServerWindows::_set_mouse_mode_impl(DisplayServerEnums::MouseMode p_
 		ClientToScreen(wd.hWnd, (POINT *)&clipRect.left);
 		ClientToScreen(wd.hWnd, (POINT *)&clipRect.right);
 		ClipCursor(&clipRect);
-		if (p_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED) {
+		if (p_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED && !windows_embed_xaml_input) {
 			center = window_get_size() / 2;
 			POINT pos = { (int)center.x, (int)center.y };
 			ClientToScreen(wd.hWnd, &pos);
@@ -2545,7 +2554,20 @@ void DisplayServerWindows::_get_window_style(bool p_main_window, bool p_initiali
 	}
 
 	if (p_embed_child) {
-		r_style |= WS_POPUP;
+#ifdef WINDOWS_EMBED_ENABLED
+		if (_embedded_parent_hwnd != nullptr) {
+			// WindowsEmbed SwapChainPanel host: use WS_CHILD so the HWND is a true
+			// child of the host window (input flows via standard WM_* messages).
+			// WS_EX_NOREDIRECTIONBITMAP keeps DWM from redirecting the surface;
+			// the SwapChainPanel handles presentation.
+			r_style_ex &= ~WS_EX_WINDOWEDGE;
+			r_style |= WS_CHILD;
+			r_style_ex |= WS_EX_NOREDIRECTIONBITMAP;
+		} else
+#endif
+		{
+			r_style |= WS_POPUP;
+		}
 	} else if (p_fullscreen || p_borderless) {
 		r_style |= WS_POPUP; // p_borderless was WS_EX_TOOLWINDOW in the past.
 		if (p_minimized) {
@@ -5438,6 +5460,15 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			if (windows[window_id].no_focus || windows[window_id].is_popup) {
 				return MA_NOACTIVATE; // Do not activate, but process mouse messages.
 			}
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_active) {
+				// In WindowsEmbed embed mode key events are routed through the XAML event
+				// system. Do not steal Win32 focus from the XAML bridge HWND or
+				// WindowsEmbed's FocusManager will lose track of the focused element and
+				// GodotPanel.KeyDown will stop firing.
+				return MA_NOACTIVATE;
+			}
+#endif
 			// When embedded, the window is a child of the parent and is not activated
 			// by default because it lacks native controls.
 			if (windows[window_id].parent_hwnd) {
@@ -5672,7 +5703,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 						}
 					}
 				}
-			} else if (mouse_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED && raw->header.dwType == RIM_TYPEMOUSE) {
+			} else if (mouse_mode == DisplayServerEnums::MOUSE_MODE_CAPTURED &&
+#ifdef WINDOWS_EMBED_ENABLED
+					!_windows_embed_uses_xaml_input() &&
+#endif
+					raw->header.dwType == RIM_TYPEMOUSE) {
 				Ref<InputEventMouseMotion> mm;
 				mm.instantiate();
 
@@ -6113,6 +6148,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			return 0; // Pointer event handled return 0 to avoid duplicate WM_MOUSEMOVE event.
 		} break;
 		case WM_MOUSEMOVE: {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
+				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+			}
+#endif
 			if (windows[window_id].block_mm) {
 				break;
 			}
@@ -6245,6 +6285,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		} break;
 		case WM_LBUTTONDOWN:
 		case WM_LBUTTONUP:
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
+				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+			}
+#endif
 			if (Input::get_singleton()->is_emulating_mouse_from_touch()) {
 				// Universal translation enabled; ignore OS translations for left button.
 				LPARAM extra = GetMessageExtraInfo();
@@ -6616,6 +6661,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 		case WM_KEYUP:
 		case WM_SYSKEYDOWN:
 		case WM_KEYDOWN: {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
+				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+			}
+#endif
 			if (windows[window_id].ime_suppress_next_keyup && (uMsg == WM_KEYUP || uMsg == WM_SYSKEYUP)) {
 				windows[window_id].ime_suppress_next_keyup = false;
 				break;
@@ -6633,6 +6683,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			[[fallthrough]];
 		}
 		case WM_CHAR: {
+#ifdef WINDOWS_EMBED_ENABLED
+			if (_windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML) {
+				return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+			}
+#endif
 			ERR_BREAK(key_event_pos >= KEY_EVENT_BUFFER_SIZE);
 			const BitField<WinKeyModifierMask> &mods = _get_mods();
 
@@ -7007,6 +7062,43 @@ void DisplayServerWindows::_update_tablet_ctx(const String &p_old_driver, const 
 	}
 }
 
+void DisplayServerWindows::set_embedded_parent_hwnd(void *p_hwnd) {
+	_embedded_parent_hwnd = (HWND)p_hwnd;
+}
+
+void DisplayServerWindows::window_set_embedded_parent(DisplayServerEnums::WindowID p_window_id, void *p_parent_hwnd) {
+	_THREAD_SAFE_METHOD_
+
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowData &wd = windows[p_window_id];
+
+	HWND new_parent = (HWND)p_parent_hwnd;
+
+	if (wd.hWnd != nullptr) {
+		// Window already created — re-parent it live.
+		SetParent(wd.hWnd, new_parent);
+		wd.parent_hwnd = new_parent;
+
+		if (new_parent != nullptr) {
+			// Resize to match the parent client area.
+			RECT client_rect;
+			if (GetClientRect(new_parent, &client_rect)) {
+				int w = client_rect.right - client_rect.left;
+				int h = client_rect.bottom - client_rect.top;
+				wd.width = w;
+				wd.height = h;
+				MoveWindow(wd.hWnd, 0, 0, w, h, TRUE);
+				if (wd.rect_changed_callback.is_valid()) {
+					wd.rect_changed_callback.call(Rect2i(0, 0, w, h));
+				}
+			}
+		}
+	} else {
+		// Window not yet created — store so _create_window picks it up.
+		wd.parent_hwnd = new_parent;
+	}
+}
+
 Error DisplayServerWindows::_create_window(DisplayServerEnums::WindowID p_window_id, DisplayServerEnums::WindowMode p_mode, uint32_t p_flags, const Rect2i &p_rect, bool p_exclusive, DisplayServerEnums::WindowID p_transient_parent, HWND p_parent_hwnd, bool p_no_redirection_bitmap) {
 	DWORD dwExStyle;
 	DWORD dwStyle;
@@ -7304,6 +7396,12 @@ void DisplayServerWindows::_destroy_window(DisplayServerEnums::WindowID p_window
 	if (has_winrt_queue) {
 		WinRTUtils::destroy_wd(wd.wrt_wd);
 	}
+#ifdef WINDOWS_EMBED_ENABLED
+	if (wd.swap_chain_panel) {
+		wd.swap_chain_panel->Release();
+		wd.swap_chain_panel = nullptr;
+	}
+#endif
 	DestroyWindow(wd.hWnd);
 	windows.erase(p_window_id);
 }
@@ -7331,6 +7429,11 @@ Error DisplayServerWindows::_create_rendering_context_window(DisplayServerEnums:
 #ifdef D3D12_ENABLED
 	if (p_rendering_driver == "d3d12") {
 		wpd.d3d12.window = wd.hWnd;
+#ifdef WINDOWS_EMBED_ENABLED
+		wpd.d3d12.swap_chain_panel = wd.swap_chain_panel;
+		// Identical signatures; cast bridges the DisplayServer and driver typedefs.
+		wpd.d3d12.ui_dispatch = (RenderingContextDriverD3D12::SwapChainBindDispatch)_ui_dispatch;
+#endif
 	}
 #endif
 
@@ -7339,6 +7442,14 @@ Error DisplayServerWindows::_create_rendering_context_window(DisplayServerEnums:
 
 	Vector2i off = (wd.multiwindow_fs || (!wd.fullscreen && wd.borderless && wd.maximized)) ? _get_screen_expand_offset(window_get_current_screen(p_window_id)) : Vector2i();
 	rendering_context->window_set_size(p_window_id, wd.width + off.x, wd.height + off.y);
+#if defined(WINDOWS_EMBED_ENABLED) && defined(D3D12_ENABLED)
+	if (p_rendering_driver == "d3d12") {
+		RenderingContextDriver::SurfaceID surface = rendering_context->surface_get_from_window(p_window_id);
+		if (surface) {
+			static_cast<RenderingContextDriverD3D12 *>(rendering_context)->surface_set_composition_scale(surface, wd.composition_scale_x, wd.composition_scale_y);
+		}
+	}
+#endif
 	wd.rendering_context_window_created = true;
 
 	return OK;
@@ -7398,6 +7509,45 @@ ShouldAppsUseDarkModePtr DisplayServerWindows::ShouldAppsUseDarkMode = nullptr;
 GetImmersiveColorFromColorSetExPtr DisplayServerWindows::GetImmersiveColorFromColorSetEx = nullptr;
 GetImmersiveColorTypeFromNamePtr DisplayServerWindows::GetImmersiveColorTypeFromName = nullptr;
 GetImmersiveUserColorSetPreferencePtr DisplayServerWindows::GetImmersiveUserColorSetPreference = nullptr;
+
+// Embedded parent HWND for WindowsEmbed / child-window mode (pre-initialization API).
+HWND DisplayServerWindows::_embedded_parent_hwnd = nullptr;
+
+#ifdef WINDOWS_EMBED_ENABLED
+ISwapChainPanelNative *DisplayServerWindows::_pending_swap_chain_panel = nullptr;
+DisplayServerWindows::WindowsEmbedUIDispatchFunc DisplayServerWindows::_ui_dispatch = nullptr;
+float DisplayServerWindows::_pending_composition_scale_x = 1.0f;
+float DisplayServerWindows::_pending_composition_scale_y = 1.0f;
+DisplayServerWindows::WindowsEmbedInputMode DisplayServerWindows::_windows_embed_input_mode = DisplayServerWindows::WINDOWS_EMBED_INPUT_NATIVE;
+bool DisplayServerWindows::_windows_embed_active = false;
+
+bool DisplayServerWindows::_windows_embed_uses_xaml_input() {
+	return _windows_embed_input_mode == WINDOWS_EMBED_INPUT_XAML;
+}
+
+void DisplayServerWindows::set_windows_embed_input_mode(int32_t p_mode) {
+	_windows_embed_input_mode = (p_mode == WINDOWS_EMBED_INPUT_XAML) ? WINDOWS_EMBED_INPUT_XAML : WINDOWS_EMBED_INPUT_NATIVE;
+}
+
+void DisplayServerWindows::set_pending_composition_scale(float p_scale_x, float p_scale_y) {
+	_pending_composition_scale_x = p_scale_x;
+	_pending_composition_scale_y = p_scale_y;
+}
+
+void DisplayServerWindows::set_pending_swap_chain_panel(ISwapChainPanelNative *p_panel) {
+	if (_pending_swap_chain_panel) {
+		_pending_swap_chain_panel->Release();
+	}
+	_pending_swap_chain_panel = p_panel;
+	if (_pending_swap_chain_panel) {
+		_pending_swap_chain_panel->AddRef();
+	}
+}
+
+void DisplayServerWindows::set_ui_dispatcher(WindowsEmbedUIDispatchFunc p_dispatch) {
+	_ui_dispatch = p_dispatch;
+}
+#endif
 
 Vector2i _get_device_ids_reg(const String &p_device_name) {
 	Vector2i out;
@@ -7854,6 +8004,25 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 		parent_hwnd = (HWND)p_parent_window;
 	}
 
+	// Effective resolution used when creating the main window — may be overridden below.
+	Vector2i effective_resolution = p_resolution;
+
+	// Pre-initialization embedded-parent override (e.g. WindowsEmbed host set via set_embedded_parent_hwnd).
+	if (_embedded_parent_hwnd != nullptr) {
+		parent_hwnd = _embedded_parent_hwnd;
+		// Use the host window's client area as the initial size so the Godot surface
+		// fills the SwapChainPanel / host bounds from the very first frame.
+		RECT client_rect;
+		if (GetClientRect(parent_hwnd, &client_rect)) {
+			int w = client_rect.right - client_rect.left;
+			int h = client_rect.bottom - client_rect.top;
+			if (w > 0 && h > 0) {
+				effective_resolution = Vector2i(w, h);
+				window_position = Point2i(0, 0);
+			}
+		}
+	}
+
 	// Init context and rendering device.
 	if (rendering_driver == "dummy") {
 		RasterizerDummy::make_current();
@@ -7920,12 +8089,32 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 				}
 
 				if (!main_window_created) {
-					if (_create_window(DisplayServerEnums::MAIN_WINDOW_ID, p_mode, p_flags, Rect2i(window_position, p_resolution), false, DisplayServerEnums::INVALID_WINDOW_ID, parent_hwnd, cur_no_redirection_bitmap_value) != OK) {
+					if (_create_window(DisplayServerEnums::MAIN_WINDOW_ID, p_mode, p_flags, Rect2i(window_position, effective_resolution), false, DisplayServerEnums::INVALID_WINDOW_ID, parent_hwnd, cur_no_redirection_bitmap_value) != OK) {
 						r_error = ERR_UNAVAILABLE;
 						ERR_FAIL_MSG("Failed to create main window.");
 					}
 					main_window_created = true;
 				}
+
+#ifdef WINDOWS_EMBED_ENABLED
+				// Apply any swap chain panel + composition scale set before the DisplayServer existed.
+				// Must happen after _create_window (WindowData exists) and before
+				// _create_rendering_context_window (Surface is about to be created).
+				{
+					WindowData &wd_main = windows[DisplayServerEnums::MAIN_WINDOW_ID];
+					if (_pending_swap_chain_panel != nullptr) {
+						if (wd_main.swap_chain_panel) {
+							wd_main.swap_chain_panel->Release();
+						}
+						wd_main.swap_chain_panel = _pending_swap_chain_panel;
+						// wd_main.swap_chain_panel now owns the ref held by _pending_swap_chain_panel.
+						_pending_swap_chain_panel = nullptr;
+						_windows_embed_active = true;
+					}
+					wd_main.composition_scale_x = _pending_composition_scale_x;
+					wd_main.composition_scale_y = _pending_composition_scale_y;
+				}
+#endif
 
 				if (_create_rendering_context_window(DisplayServerEnums::MAIN_WINDOW_ID, tested_rendering_driver) == OK) {
 					rendering_device = memnew(RenderingDevice);
@@ -8117,7 +8306,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Dis
 #endif
 
 	if (should_create_main_window) {
-		if (_create_window(DisplayServerEnums::MAIN_WINDOW_ID, p_mode, p_flags, Rect2i(window_position, p_resolution), false, DisplayServerEnums::INVALID_WINDOW_ID, parent_hwnd, no_redirection_bitmap) != OK) {
+		if (_create_window(DisplayServerEnums::MAIN_WINDOW_ID, p_mode, p_flags, Rect2i(window_position, effective_resolution), false, DisplayServerEnums::INVALID_WINDOW_ID, parent_hwnd, no_redirection_bitmap) != OK) {
 			r_error = ERR_UNAVAILABLE;
 			ERR_FAIL_MSG("Failed to create main window.");
 		}
@@ -8291,6 +8480,200 @@ DisplayServer *DisplayServerWindows::create_func(const String &p_rendering_drive
 void DisplayServerWindows::register_windows_driver() {
 	register_create_function("windows", create_func, get_rendering_drivers_func);
 }
+
+void DisplayServerWindows::window_set_swap_chain_panel(DisplayServerEnums::WindowID p_window_id, void *p_panel) {
+	_THREAD_SAFE_METHOD_
+
+	ERR_FAIL_COND(!windows.has(p_window_id));
+
+#ifdef WINDOWS_EMBED_ENABLED
+	WindowData &wd = windows[p_window_id];
+
+	if (wd.swap_chain_panel) {
+		wd.swap_chain_panel->Release();
+		wd.swap_chain_panel = nullptr;
+	}
+
+	wd.swap_chain_panel = static_cast<ISwapChainPanelNative *>(p_panel);
+
+	if (wd.swap_chain_panel) {
+		wd.swap_chain_panel->AddRef();
+	}
+
+#ifdef RD_ENABLED
+	if (wd.rendering_context_window_created && rendering_context != nullptr) {
+		_destroy_rendering_context_window(p_window_id);
+		_create_rendering_context_window(p_window_id, rendering_driver);
+	}
+#endif
+#endif
+}
+
+void DisplayServerWindows::window_notify_panel_resize(DisplayServerEnums::WindowID p_window_id, int p_width, int p_height) {
+	_THREAD_SAFE_METHOD_
+
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowData &wd = windows[p_window_id];
+
+	wd.width = p_width;
+	wd.height = p_height;
+
+	// Keep the child HWND covering the full panel so Win32 hit-testing stays correct
+	// and no WM_PAINT gap appears between the HWND edge and the SwapChainPanel boundary.
+	if (wd.hWnd && wd.parent_hwnd) {
+		SetWindowPos(wd.hWnd, nullptr, 0, 0, p_width, p_height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+	}
+
+#if defined(RD_ENABLED)
+	if (rendering_context != nullptr && wd.rendering_context_window_created) {
+		rendering_context->window_set_size(p_window_id, p_width, p_height);
+	}
+#endif
+
+	if (wd.rect_changed_callback.is_valid()) {
+		wd.rect_changed_callback.call(Rect2i(wd.last_pos.x, wd.last_pos.y, wd.width, wd.height));
+	}
+}
+
+void DisplayServerWindows::window_set_composition_scale(DisplayServerEnums::WindowID p_window_id, float p_scale_x, float p_scale_y) {
+	_THREAD_SAFE_METHOD_
+
+	ERR_FAIL_COND(!windows.has(p_window_id));
+#ifdef WINDOWS_EMBED_ENABLED
+	WindowData &wd = windows[p_window_id];
+	wd.composition_scale_x = p_scale_x;
+	wd.composition_scale_y = p_scale_y;
+
+#if defined(RD_ENABLED) && defined(D3D12_ENABLED)
+	if (rendering_driver == "d3d12" && rendering_context != nullptr && wd.rendering_context_window_created) {
+		RenderingContextDriver::SurfaceID surface = rendering_context->surface_get_from_window(p_window_id);
+		if (surface) {
+			static_cast<RenderingContextDriverD3D12 *>(rendering_context)->surface_set_composition_scale(surface, p_scale_x, p_scale_y);
+		}
+	}
+#endif
+#endif
+}
+
+#ifdef WINDOWS_EMBED_ENABLED
+// Read current modifier key state — mirrors _get_mods() for use in static methods.
+static void _windows_embed_read_mods(bool &r_shift, bool &r_ctrl, bool &r_alt, bool &r_meta) {
+	unsigned char ks[256];
+	if (GetKeyboardState((PBYTE)ks)) {
+		r_shift = (ks[VK_LSHIFT] & 0x80) || (ks[VK_RSHIFT] & 0x80);
+		r_ctrl = (ks[VK_LCONTROL] & 0x80) || (ks[VK_RCONTROL] & 0x80);
+		r_alt = (ks[VK_LMENU] & 0x80) || (ks[VK_RMENU] & 0x80);
+		r_meta = (ks[VK_LWIN] & 0x80) || (ks[VK_RWIN] & 0x80);
+	}
+}
+
+void DisplayServerWindows::_windows_embed_inject_mouse_button(DisplayServerEnums::WindowID p_window_id, MouseButton p_button, bool p_pressed, float p_x, float p_y) {
+	bool shift = false, ctrl = false, alt = false, meta = false;
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
+
+	Ref<InputEventMouseButton> mb;
+	mb.instantiate();
+	mb->set_window_id(p_window_id);
+	mb->set_button_index(p_button);
+	mb->set_pressed(p_pressed);
+	mb->set_position(Vector2(p_x, p_y));
+	mb->set_global_position(Vector2(p_x, p_y));
+	mb->set_button_mask(Input::get_singleton()->get_mouse_button_mask());
+	mb->set_shift_pressed(shift);
+	mb->set_ctrl_pressed(ctrl);
+	mb->set_alt_pressed(alt);
+	mb->set_meta_pressed(meta);
+	Input::get_singleton()->parse_input_event(mb);
+}
+
+void DisplayServerWindows::_windows_embed_inject_mouse_motion(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_rel_x, float p_rel_y) {
+	bool shift = false, ctrl = false, alt = false, meta = false;
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
+
+	Ref<InputEventMouseMotion> mm;
+	mm.instantiate();
+	mm->set_window_id(p_window_id);
+	mm->set_position(Vector2(p_x, p_y));
+	mm->set_global_position(Vector2(p_x, p_y));
+	mm->set_relative(Vector2(p_rel_x, p_rel_y));
+	mm->set_relative_screen_position(Vector2(p_rel_x, p_rel_y));
+	mm->set_velocity(Input::get_singleton()->get_last_mouse_velocity());
+	mm->set_screen_velocity(mm->get_velocity());
+	mm->set_button_mask(Input::get_singleton()->get_mouse_button_mask());
+	mm->set_shift_pressed(shift);
+	mm->set_ctrl_pressed(ctrl);
+	mm->set_alt_pressed(alt);
+	mm->set_meta_pressed(meta);
+	Input::get_singleton()->parse_input_event(mm);
+
+	DisplayServerWindows *ds = static_cast<DisplayServerWindows *>(DisplayServer::get_singleton());
+	ERR_FAIL_COND(!ds->windows.has(p_window_id));
+	ds->windows[p_window_id].last_pos = Point2(p_x, p_y);
+	ds->old_x = (int)p_x;
+	ds->old_y = (int)p_y;
+	ds->old_invalid = false;
+	Input::get_singleton()->set_mouse_position(Point2i(p_x, p_y));
+}
+
+static void _send_scroll_event(DisplayServerEnums::WindowID p_win,
+		MouseButton p_btn, float p_factor, float p_x, float p_y,
+		bool p_shift, bool p_ctrl, bool p_alt, bool p_meta) {
+	Ref<InputEventMouseButton> mb;
+	mb.instantiate();
+	mb->set_window_id(p_win);
+	mb->set_button_index(p_btn);
+	mb->set_factor(p_factor);
+	mb->set_position(Vector2(p_x, p_y));
+	mb->set_global_position(Vector2(p_x, p_y));
+	mb->set_shift_pressed(p_shift);
+	mb->set_ctrl_pressed(p_ctrl);
+	mb->set_alt_pressed(p_alt);
+	mb->set_meta_pressed(p_meta);
+
+	mb->set_pressed(true);
+	mb->set_button_mask(Input::get_singleton()->get_mouse_button_mask());
+	Input::get_singleton()->parse_input_event(mb);
+
+	Ref<InputEventMouseButton> mbd = mb->duplicate();
+	mbd->set_pressed(false);
+	mbd->set_button_mask(Input::get_singleton()->get_mouse_button_mask());
+	Input::get_singleton()->parse_input_event(mbd);
+}
+
+void DisplayServerWindows::_windows_embed_inject_mouse_wheel(DisplayServerEnums::WindowID p_window_id, float p_x, float p_y, float p_delta_x, float p_delta_y) {
+	bool shift = false, ctrl = false, alt = false, meta = false;
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
+
+	if (p_delta_y != 0.0f) {
+		_send_scroll_event(p_window_id, p_delta_y > 0.0f ? MouseButton::WHEEL_UP : MouseButton::WHEEL_DOWN, Math::abs(p_delta_y), p_x, p_y, shift, ctrl, alt, meta);
+	}
+	if (p_delta_x != 0.0f) {
+		_send_scroll_event(p_window_id, p_delta_x > 0.0f ? MouseButton::WHEEL_RIGHT : MouseButton::WHEEL_LEFT, Math::abs(p_delta_x), p_x, p_y, shift, ctrl, alt, meta);
+	}
+}
+
+void DisplayServerWindows::_windows_embed_inject_key(DisplayServerEnums::WindowID p_window_id, Key p_keycode, bool p_pressed, bool p_echo, char32_t p_char) {
+	bool shift = false, ctrl = false, alt = false, meta = false;
+	_windows_embed_read_mods(shift, ctrl, alt, meta);
+
+	Ref<InputEventKey> k;
+	k.instantiate();
+	k->set_window_id(p_window_id);
+	k->set_keycode(p_keycode);
+	k->set_physical_keycode(p_keycode);
+	k->set_key_label(p_keycode);
+	k->set_pressed(p_pressed);
+	k->set_echo(p_echo);
+	k->set_shift_pressed(shift);
+	k->set_ctrl_pressed(ctrl);
+	k->set_alt_pressed(alt);
+	k->set_meta_pressed(meta);
+	if (p_char) {
+		k->set_unicode(fix_unicode(p_char));
+	}
+	Input::get_singleton()->parse_input_event(k);
+}
+#endif // WINDOWS_EMBED_ENABLED
 
 DisplayServerWindows::~DisplayServerWindows() {
 	LocalVector<List<FileDialogData *>::Element *> to_remove;

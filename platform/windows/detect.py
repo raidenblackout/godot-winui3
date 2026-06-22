@@ -273,6 +273,12 @@ def get_opts():
             "Path to the PIX runtime distribution (optional for D3D12)",
             os.path.join(deps_folder, "pix"),
         ),
+        # WindowsEmbed SwapChainPanel embedding.
+        BoolVariable(
+            "windows_embed",
+            "Enable WindowsEmbed SwapChainPanel embedding support (requires library_type=shared_library)",
+            False,
+        ),
     ]
 
 
@@ -1043,6 +1049,23 @@ def configure(env: "SConsEnvironment"):
         configure_msvc(env)
     else:
         configure_mingw(env)
+
+    if env["windows_embed"]:
+        if env.msvc:
+            if not env["d3d12"]:
+                print_error(
+                    'WindowsEmbed embedding (windows_embed=yes) requires Direct3D 12; enable it by passing "d3d12=yes" to the SCons command line.'
+                )
+                sys.exit(255)
+            if env["library_type"] != "shared_library":
+                print_error(
+                    'WindowsEmbed embedding (windows_embed=yes) requires a shared library build; pass "library_type=shared_library" to the SCons command line.'
+                )
+                sys.exit(255)
+            env["supported"].append("windows_embed")
+        else:
+            print_warning("WindowsEmbed embedding (windows_embed=yes) requires MSVC; ignoring on MinGW.")
+            env["windows_embed"] = False
 
 
 def check_d3d12_installed(env, suffix):
