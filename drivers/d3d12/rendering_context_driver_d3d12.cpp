@@ -43,6 +43,10 @@ GODOT_CLANG_WARNING_POP
 
 #include <dxgi1_6.h>
 
+#ifdef WINDOWS_EMBED_ENABLED
+#include <windows.ui.xaml.media.dxinterop.h>
+#endif
+
 #if !defined(_MSC_VER)
 #include <thirdparty/directx_headers/include/dxguids/dxguids.h>
 
@@ -255,6 +259,13 @@ RenderingContextDriver::SurfaceID RenderingContextDriverD3D12::surface_create(co
 	const WindowPlatformData *wpd = (const WindowPlatformData *)(p_platform_data);
 	Surface *surface = memnew(Surface);
 	surface->hwnd = wpd->window;
+#ifdef WINDOWS_EMBED_ENABLED
+	surface->swap_chain_panel = wpd->swap_chain_panel;
+	if (surface->swap_chain_panel) {
+		surface->swap_chain_panel->AddRef();
+	}
+	surface->ui_dispatch = wpd->ui_dispatch;
+#endif
 	return SurfaceID(surface);
 }
 
@@ -342,8 +353,28 @@ bool RenderingContextDriverD3D12::surface_get_needs_resize(SurfaceID p_surface) 
 	return surface->needs_resize;
 }
 
+#ifdef WINDOWS_EMBED_ENABLED
+void RenderingContextDriverD3D12::surface_set_composition_scale(SurfaceID p_surface, float p_scale_x, float p_scale_y) {
+	Surface *surface = (Surface *)(p_surface);
+	if (surface->composition_scale_x == p_scale_x && surface->composition_scale_y == p_scale_y) {
+		return;
+	}
+	surface->composition_scale_x = p_scale_x;
+	surface->composition_scale_y = p_scale_y;
+	// The matrix transform itself is reapplied by the device driver during the
+	// next swap chain (re)create, which the display server triggers by also
+	// pushing a new physical-pixel size when the panel's CompositionScale changes.
+	surface->needs_resize = true;
+}
+#endif
+
 void RenderingContextDriverD3D12::surface_destroy(SurfaceID p_surface) {
 	Surface *surface = (Surface *)(p_surface);
+#ifdef WINDOWS_EMBED_ENABLED
+	if (surface->swap_chain_panel) {
+		surface->swap_chain_panel->Release();
+	}
+#endif
 	memdelete(surface);
 }
 

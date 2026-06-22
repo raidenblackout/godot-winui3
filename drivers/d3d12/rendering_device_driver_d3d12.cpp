@@ -40,6 +40,10 @@
 #include <drivers/d3d12/godot_nir.h>
 #include <dxgi1_6.h>
 
+#ifdef WINDOWS_EMBED_ENABLED
+#include <windows.ui.xaml.media.dxinterop.h>
+#endif
+
 #if !defined(_MSC_VER)
 #include <thirdparty/directx_headers/include/dxguids/dxguids.h>
 
@@ -2791,7 +2795,23 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 	}
 	bool create_for_composition = false;
 #endif
+	bool create_for_swap_chain_panel = false;
+#ifdef WINDOWS_EMBED_ENABLED
+	if (surface->swap_chain_panel != nullptr) {
+		create_for_swap_chain_panel = true;
+		// SwapChainPanel can only consume a swap chain created via
+		// CreateSwapChainForComposition. Composition alpha (PREMULTIPLIED) is a
+		// separate decision: only enable it when the project actually opted into
+		// per-pixel transparency, otherwise the XAML page background bleeds
+		// through wherever the engine writes alpha < 1.
+		create_for_composition = true;
+	}
+#endif
+	const bool use_composition_alpha = create_for_composition && (!create_for_swap_chain_panel || OS::get_singleton()->is_layered_allowed());
 
+#ifdef WINDOWS_EMBED_ENABLED
+	const bool fresh_swap_chain = (swap_chain->d3d_swap_chain == nullptr);
+#endif
 	DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
 	if (swap_chain->d3d_swap_chain != nullptr) {
 		_swap_chain_release_buffers(swap_chain);
@@ -2809,7 +2829,7 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		swap_chain_desc.SampleDesc.Count = 1;
 		swap_chain_desc.Flags = creation_flags;
 		swap_chain_desc.Scaling = DXGI_SCALING_STRETCH;
-		if (create_for_composition) {
+		if (use_composition_alpha) {
 			swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
 			has_comp_alpha[(uint64_t)p_cmd_queue.id] = true;
 		} else {
@@ -2823,6 +2843,7 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		if (create_for_composition) {
 			res = context_driver->dxgi_factory_get()->CreateSwapChainForComposition(command_queue->d3d_queue.Get(), &swap_chain_desc, nullptr, swap_chain_1.GetAddressOf());
 			if (!SUCCEEDED(res)) {
+				ERR_FAIL_COND_V_MSG(create_for_swap_chain_panel, ERR_CANT_CREATE, "Failed to create swap chain for WindowsEmbed SwapChainPanel.");
 				WARN_PRINT_ONCE("Window transparency is not supported without DirectComposition on D3D12.");
 				swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 				has_comp_alpha[(uint64_t)p_cmd_queue.id] = false;
@@ -2839,8 +2860,10 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		swap_chain_1.As(&swap_chain->d3d_swap_chain);
 		ERR_FAIL_NULL_V(swap_chain->d3d_swap_chain, ERR_CANT_CREATE);
 
-		res = context_driver->dxgi_factory_get()->MakeWindowAssociation(surface->hwnd, DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_WINDOW_CHANGES);
-		ERR_FAIL_COND_V(!SUCCEEDED(res), ERR_CANT_CREATE);
+		if (surface->hwnd != nullptr) {
+			res = context_driver->dxgi_factory_get()->MakeWindowAssociation(surface->hwnd, DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_WINDOW_CHANGES);
+			ERR_FAIL_COND_V(!SUCCEEDED(res), ERR_CANT_CREATE);
+		}
 	}
 
 	if (swap_chain->color_space != new_color_space) {
@@ -2850,8 +2873,61 @@ Error RenderingDeviceDriverD3D12::swap_chain_resize(CommandQueueID p_cmd_queue, 
 		swap_chain->color_space = new_color_space;
 	}
 
+#ifdef WINDOWS_EMBED_ENABLED
+	if (create_for_swap_chain_panel) {
+		// Binding the swap chain into the SwapChainPanel's composition visual
+		// (SetSwapChain) touches state owned by the thread that created the panel
+		// (the host UI thread). When the engine iterates on a dedicated thread we
+		// must marshal it onto the UI thread; off-thread it returns S_OK but never
+		// attaches and the panel stays blank.
+		//
+		// Only do this on FRESH creation. The hop blocks the engine thread until
+		// the UI thread runs it — but during an interactive (drag) resize the UI
+		// thread is in the Win32 modal resize loop and is synchronously SendMessage-
+		// ing WM_SIZE to our child HWND, which it can only complete once the engine
+		// thread pumps. Blocking the engine thread there would deadlock both. Drag
+		// resizes hit the ResizeBuffers path (not fresh), so they never hop.
+		if (fresh_swap_chain) {
+			struct PanelBind {
+				ISwapChainPanelNative *panel;
+				IDXGISwapChain *swap_chain;
+				HRESULT result;
+			} bind;
+			bind.panel = surface->swap_chain_panel;
+			bind.swap_chain = swap_chain->d3d_swap_chain.Get();
+			bind.result = S_OK;
+
+			// Non-capturing lambda → plain function pointer, so it can cross the C ABI.
+			void (*work)(void *) = [](void *p_ctx) {
+				PanelBind *b = static_cast<PanelBind *>(p_ctx);
+				b->result = b->panel->SetSwapChain(b->swap_chain);
+			};
+
+			if (surface->ui_dispatch != nullptr) {
+				surface->ui_dispatch(work, &bind);
+			} else {
+				work(&bind);
+			}
+			ERR_FAIL_COND_V(!SUCCEEDED(bind.result), ERR_CANT_CREATE);
+		}
+
+		// Reapply the inverse CompositionScale transform on every (re)size — the
+		// scale may change independently of swap chain recreation. This is a DXGI
+		// swap-chain method on the engine-owned swap chain (not a panel/compositor
+		// call), so it is safe to run inline on the engine thread without a UI hop.
+		// (IDXGISwapChain3 inherits SetMatrixTransform from IDXGISwapChain2.)
+		DXGI_MATRIX_3X2_F transform = {
+			1.0f / surface->composition_scale_x, 0.0f,
+			0.0f, 1.0f / surface->composition_scale_y,
+			0.0f, 0.0f
+		};
+		res = swap_chain->d3d_swap_chain->SetMatrixTransform(&transform);
+		ERR_FAIL_COND_V(!SUCCEEDED(res), ERR_CANT_CREATE);
+	}
+#endif
+
 #ifdef DCOMP_ENABLED
-	if (create_for_composition) {
+	if (create_for_composition && !create_for_swap_chain_panel) {
 		if (surface->composition_device.Get() == nullptr) {
 			using PFN_DCompositionCreateDevice = HRESULT(WINAPI *)(IDXGIDevice *, REFIID, void **);
 			PFN_DCompositionCreateDevice pfn_DCompositionCreateDevice = (PFN_DCompositionCreateDevice)(void *)GetProcAddress(context_driver->lib_dcomp, "DCompositionCreateDevice");

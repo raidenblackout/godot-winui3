@@ -40,6 +40,10 @@
 #include <dcomp.h>
 #endif
 
+#ifdef WINDOWS_EMBED_ENABLED
+struct ISwapChainPanelNative;
+#endif
+
 #include <wrl/client.h>
 
 #define ARRAY_SIZE(a) std_size(a)
@@ -79,12 +83,31 @@ public:
 	virtual uint32_t surface_get_height(SurfaceID p_surface) const override;
 	virtual void surface_set_needs_resize(SurfaceID p_surface, bool p_needs_resize) override;
 	virtual bool surface_get_needs_resize(SurfaceID p_surface) const override;
+#ifdef WINDOWS_EMBED_ENABLED
+	void surface_set_composition_scale(SurfaceID p_surface, float p_scale_x, float p_scale_y);
+#endif
 	virtual void surface_destroy(SurfaceID p_surface) override;
 	virtual bool is_debug_utils_enabled() const override;
 
 	// Platform-specific data for the Windows embedded in this driver.
+	// Note: keep all members trivially default-constructible — this struct is
+	// used inside an anonymous union in display_server_windows.cpp, so a
+	// non-trivial default ctor (e.g. via a default member initializer) would
+	// delete the union's default ctor. Callers must set every field they care
+	// about explicitly before passing this to surface_create().
+#ifdef WINDOWS_EMBED_ENABLED
+	// Runs p_work(p_ctx) synchronously on the thread that owns the SwapChainPanel
+	// (the host UI thread). Supplied by the WindowsEmbed host when the engine iterates
+	// on a dedicated thread; nullptr means "run inline" (engine on the UI thread).
+	typedef void (*SwapChainBindDispatch)(void (*p_work)(void *p_ctx), void *p_ctx);
+#endif
+
 	struct WindowPlatformData {
 		HWND window;
+#ifdef WINDOWS_EMBED_ENABLED
+		ISwapChainPanelNative *swap_chain_panel;
+		SwapChainBindDispatch ui_dispatch;
+#endif
 	};
 
 	// D3D12-only methods.
@@ -107,6 +130,17 @@ public:
 		Microsoft::WRL::ComPtr<IDCompositionDevice> composition_device;
 		Microsoft::WRL::ComPtr<IDCompositionTarget> composition_target;
 		Microsoft::WRL::ComPtr<IDCompositionVisual> composition_visual;
+#endif
+#ifdef WINDOWS_EMBED_ENABLED
+		ISwapChainPanelNative *swap_chain_panel = nullptr;
+		// Marshals the panel-affine bind (SetSwapChain / SetMatrixTransform) onto
+		// the UI thread; nullptr means run inline. See WindowPlatformData.
+		SwapChainBindDispatch ui_dispatch = nullptr;
+		// CompositionScale of the SwapChainPanel — physical-pixels-per-DIP. The
+		// swap chain must apply the inverse of this as a transform so that the
+		// pixel-sized buffer maps 1:1 into the panel's DIP-sized output area.
+		float composition_scale_x = 1.0f;
+		float composition_scale_y = 1.0f;
 #endif
 	};
 
