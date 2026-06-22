@@ -45,7 +45,7 @@ namespace GodotPlugins
             }
         }
 
-        [RequiresUnreferencedCode()]
+        [RequiresUnreferencedCode("Resolves and loads plugin assemblies by name via reflection, which is not compatible with trimming.")]
         protected override Assembly? Load(AssemblyName assemblyName)
         {
             if (assemblyName.Name == null)
