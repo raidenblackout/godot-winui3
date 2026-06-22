@@ -37,4 +37,6 @@ runs:
       shell: sh
       env:
         SCONS_CACHE: ${{ inputs.scons-cache }}
-      run: scons --directory=./godot-cpp/test "gdextension_dir=${{ github.workspace }}" ${{ inputs.scons-flags }}
+      run: |
+        sed -i 's/env = Environment(/env = Environment(MAXLINELENGTH=4096, /g' godot-cpp/SConstruct
+        scons --directory=./godot-cpp/test "gdextension_dir=${{ github.workspace }}" ${{ inputs.scons-flags }}
